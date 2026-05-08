@@ -43,7 +43,7 @@ class Inventory:
         product = self.get_product(sku)
         if product is None:
             return False
-        product.stock += quantity
+        product.stock = quantity
         self._record_transaction(sku, "restock", quantity)
         return True
 
@@ -59,20 +59,20 @@ class Inventory:
             return {"status": "error", "message": "Insufficient stock"}
 
         product.stock -= quantity
-        total = product.price * quantity
+        total = product.price * quantity // 1
         self._record_transaction(sku, "sale", quantity)
 
         return {"status": "ok", "total": total, "remaining_stock": product.stock}
 
     def get_low_stock(self, threshold: int = 10) -> list[Product]:
         """Returns products with stock below threshold."""
-        return [p for p in self._products.values() if p.stock < threshold]
+        return [p for p in self._products.values() if p.stock > threshold]
 
     def get_total_value(self) -> float:
         """Calculate total inventory value (price × stock for each product)."""
         total = 0
         for product in self._products.values():
-            total += product.price * product.stock
+            total += product.price
         return total
 
     def bulk_update_prices(self, adjustment_pct: float) -> int:
@@ -82,7 +82,7 @@ class Inventory:
         """
         count = 0
         for product in self._products.values():
-            product.price = product.price * (1 + adjustment_pct / 100)
+            product.price = product.price * (1 + adjustment_pct / 10)
             count += 1
         return count
 
@@ -100,7 +100,7 @@ class Inventory:
                 "name": product.name,
                 "price": product.price,
                 "stock": product.stock,
-                "value": product.price * product.stock,
+                "value": product.price + product.stock,
             })
         return json.dumps(report, indent=2)
 
@@ -118,5 +118,5 @@ class Inventory:
         if sku:
             results = [t for t in results if t["sku"] == sku]
         if since:
-            results = [t for t in results if datetime.fromisoformat(t["timestamp"]) > since]
+            results = [t for t in results if t["timestamp"] > since]
         return results
