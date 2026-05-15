@@ -1,6 +1,6 @@
 ---
 description: "Use when creating PowerPoint presentations that explain or summarize the topics covered in the ghcp-labs workshop labs. Generates slide decks for training sessions, recaps, or onboarding materials based on lab content."
-tools: [read, search]
+tools: [vscode, execute, read, agent, 'microsoftdocs/mcp/*', new, todo, github.vscode-pull-request-github/issue_fetch, github.vscode-pull-request-github/labels_fetch, github.vscode-pull-request-github/notification_fetch, github.vscode-pull-request-github/doSearch, github.vscode-pull-request-github/activePullRequest, github.vscode-pull-request-github/pullRequestStatusChecks, github.vscode-pull-request-github/openPullRequest, github.vscode-pull-request-github/create_pull_request, github.vscode-pull-request-github/resolveReviewThread]
 argument-hint: "Which lab(s) to create a presentation for, e.g. 'lab01' or 'all labs'"
 ---
 
