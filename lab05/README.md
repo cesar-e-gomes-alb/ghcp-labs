@@ -331,11 +331,11 @@ HVE agents enforce a **research-first discipline**. They read before they write,
 
 The **Coding Agent** is the highest-autonomy mode: given a GitHub Issue, it autonomously reads the codebase, plans changes, implements them, runs tests, and opens a PR — all without step-by-step human guidance.
 
+> **Note:** The Coding Agent is a GitHub-only feature. If you are using Azure DevOps, observe the demo or temporarily use a GitHub fork to experience this workflow.
+
 ### Your tasks
 
-1. **Create a new issue/work item.** Using the MCP tools from Chat:
-
-   **GitHub path:**
+1. **Create a new issue in your fork.** Using the GitHub MCP tools from Chat:
    ```
    Create a GitHub issue in my fork of octocat-supply-copilot-demo.
    Title: "Add low-stock alert when inventory falls below reorder threshold"
@@ -343,33 +343,14 @@ The **Coding Agent** is the highest-autonomy mode: given a GitHub Issue, it auto
    the system should emit a low-stock alert event. Add the logic and
    a unit test covering the threshold boundary.
    ```
-
-   **Azure DevOps path:**
-   ```
-   Create a work item in my ADO project.
-   Title: "Add low-stock alert when inventory falls below reorder threshold"
-   Description: When a product's quantity drops below its reorder_threshold,
-   the system should emit a low-stock alert event. Add the logic and
-   a unit test covering the threshold boundary.
-   ```
-
-   Note the issue/work item number returned.
+   Note the issue number returned.
 
 2. **Assign the issue to the Coding Agent.**
-
-   **GitHub path:**
    - Open the issue on GitHub.com (or via the GitHub Pull Requests extension).
    - Assign it to **@github-copilot**.
    - Alternatively, in Chat:
      ```
      Assign issue #<number> in my fork to github-copilot using the MCP tools.
-     ```
-
-   **Azure DevOps path:**
-   - The Coding Agent currently requires GitHub Issues. For ADO workflows, use the `rpi-agent` from Part 3 to drive the implementation locally, then create a pull request via MCP:
-     ```
-     Create a pull request in my ADO repo linking work item #<number>.
-     Include the changes from my current branch.
      ```
 
 3. **Watch the agent work.** The Coding Agent will:
