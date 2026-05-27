@@ -497,32 +497,20 @@ Then update <EPIC-ID> state to "Closed".
 
 ---
 
-## Part 2 — Agentic Sprint Execution
+## Part 2 — Agentic Story Implementation
 
 **Autonomy Level:** 🔴 Agent acts autonomously — human reviews the final report only
 
-Part 2 replaces the manual prompt-by-prompt workflow from Part 1 with three pre-built
-HVE agents that orchestrate the entire sprint lifecycle for you. The same Jira and
-Azure DevOps MCP tools are used — but now they are driven by agents, not typed prompts.
+Part 2 introduces a pre-built HVE agent that takes one story from your tracker,
+implements the mapped function in `reminder_engine.py`, runs the tests, and closes
+the story — all without manual prompts between steps.
 
 > **Complete Part 1 first** (or reset `reminder_engine.py` to all `raise NotImplementedError`
-> stubs) before running Part 2 so the agents have real work to do.
-
----
-
-### The Three Agents
-
-| Agent | File | What it does | Autonomy |
-|-------|------|-------------|---------|
-| **Story Implementer** | `.github/agents/story-implementer.agent.md` | One story: fetch → implement → test → close | Single story |
-| **Sprint Auditor** | `.github/agents/sprint-auditor.agent.md` | Verify all Done → generate evidence → release sign-off | Release gate |
-| **Sprint Runner** | `.github/agents/sprint-runner.agent.md` | Full sprint: all five stories + evidence + sign-off | Full sprint |
+> stubs) before running Part 2 so the agent has real work to do.
 
 ---
 
 ### Using the Story Implementer
-
-Use this when you want to watch a single story get implemented autonomously.
 
 **Track A (Jira):**
 
@@ -540,78 +528,8 @@ The agent will: fetch the story from the tracker → identify the function → r
 docstring contract → implement it → run pytest → post a completion comment → transition
 the story to Done.
 
-Repeat for each story, or use the Sprint Runner to do all five at once.
-
----
-
-### Using the Sprint Auditor
-
-Use this after all stories are Done to generate evidence and post the release sign-off.
-
-**Track A:**
-
-```text
-@sprint-auditor epic=SCRUM-1 track=jira
-```
-
-**Track A (your stories only):**
-
-```text
-@sprint-auditor epic=SCRUM-1 track=jira assignee=me
-```
-
-**Track B:**
-
-```text
-@sprint-auditor epic=<EPIC-ID> track=ado
-```
-
-**Track B (your stories only):**
-
-```text
-@sprint-auditor epic=<EPIC-ID> track=ado assignee=me
-```
-
-The agent will: list stories (scoped to you if `assignee=me`) → verify all Done →
-run 8/8 tests → generate `evidence/fr001_scheduler_run.json` → post the release
-sign-off comment → close the epic.
-
-If any story is not Done or any test fails, the agent stops with a blocking report
-instead of posting the sign-off.
-
----
-
-### Using the Sprint Runner (full autonomous sprint)
-
-Use this to complete the entire sprint in one invocation.
-
-**Track A:**
-
-```text
-@sprint-runner track=jira
-```
-
-**Track A (your stories only):**
-
-```text
-@sprint-runner track=jira assignee=me
-```
-
-**Track B:**
-
-```text
-@sprint-runner track=ado
-```
-
-**Track B (your stories only):**
-
-```text
-@sprint-runner track=ado assignee=me
-```
-
-The agent will execute stories in dependency order (filtered to those assigned to you
-if `assignee=me`), run the full test suite after each, generate evidence, and post
-the release sign-off — without stopping for human input.
+Invoke it once per story. Work through each story in the order from the Code Structure
+table above.
 
 ---
 
@@ -621,23 +539,18 @@ Compare Part 2 with Part 1 to understand what agentic autonomy changes:
 
 | Dimension | Part 1 (🟡 Human-approved) | Part 2 (🔴 Autonomous) |
 |-----------|---------------------------|------------------------|
-| Prompts needed | ~10 per story | 1 per sprint |
+| Prompts needed per story | ~5 | 1 |
 | Tracker updates | Human-initiated | Agent-initiated |
 | Test feedback loop | Human reads output | Agent reads and self-corrects |
-| Release sign-off | Human composes comment | Agent generates from evidence |
 | Decision points | Human approves each transition | Agent proceeds on green tests |
 
 Notice that the **code produced is identical** — the agent follows the same docstring
-contract you would have used. What changes is how much of the SDLC ceremony is
-automated around that implementation.
+contract you would have used in Part 1.
 
 ---
 
-### Agent Constraints (Shared)
+### Agent Constraints
 
-All three agents enforce these boundaries to keep the lab safe:
-
-- Never modify `tests/test_reminder_engine.py` or any file in `solutions/`.
-- Never force-pass a failing test or skip assertions.
-- Never post the release sign-off unless all 8 tests pass.
-- Stop and report clearly if any step fails after three attempts.
+- Never modifies `tests/test_reminder_engine.py` or any file in `solutions/`.
+- Never force-passes a failing test or skips assertions.
+- Stops and reports clearly if tests still fail after three attempts.
