@@ -67,11 +67,11 @@ Each TODO in `reminder_engine.py` maps directly to a story:
 
 | Story | Jira key | ADO title | Function(s) |
 |-------|----------|-----------|------------|
-| Policy | SCRUM-2 | Define reminder policy | `validate_policy` |
-| Data model | SCRUM-5 | Design reminder data model | `Approval`, `ReminderAttempt`, `SchedulerRunResult` |
-| Eligibility | SCRUM-6 | Implement eligibility detection | `is_eligible_for_reminder` |
-| Scheduler | SCRUM-3 | Build reminder scheduler | `send_reminder`, `run_scheduler_cycle` |
-| Evidence | SCRUM-4 | Build evidence payload | `build_evidence_payload` + demo run |
+| Policy | `<STORY-1-KEY>` | Define reminder policy | `validate_policy` |
+| Data model | `<STORY-2-KEY>` | Design reminder data model | `Approval`, `ReminderAttempt`, `SchedulerRunResult` |
+| Eligibility | `<STORY-3-KEY>` | Implement eligibility detection | `is_eligible_for_reminder` |
+| Scheduler | `<STORY-4-KEY>` | Build reminder scheduler | `send_reminder`, `run_scheduler_cycle` |
+| Evidence | `<STORY-5-KEY>` | Build evidence payload | `build_evidence_payload` + demo run |
 
 ---
 
@@ -112,9 +112,30 @@ Expected: **jira — Running**, 17 tools discovered.
 
 Expected: **azure-devops — Running**.
 
-### 3. Seed your backlog (Track B only)
+### 3. Seed your backlog
 
-Track A uses the pre-seeded `SCRUM` project in Jira. For Track B, create the epic and stories in your Azure DevOps project:
+Both tracks require you to create an epic and stories before you begin. Follow the prompt block for your track.
+
+**Track A — Jira:**
+
+```text
+Using Jira MCP, create an Epic issue in project <YOUR-PROJECT-KEY> titled:
+"Manager Approval Reminder (48h SLA + Audit Trail)"
+with description: "FR-001 — Deliver reminder capability for pending approvals older than 48h, with full audit trail."
+Return the issue key as <EPIC-KEY>.
+```
+
+```text
+Using Jira MCP, create the following Story issues in project <YOUR-PROJECT-KEY> linked as children of <EPIC-KEY>:
+1. "Define reminder policy and acceptance criteria"
+2. "Design reminder data model and audit log schema"
+3. "Implement pending-approval age detection service"
+4. "Build reminder scheduler for 48-hour threshold"
+5. "Build evidence payload for release validation"
+Return the keys as <STORY-1-KEY> through <STORY-5-KEY>.
+```
+
+**Track B — Azure DevOps:**
 
 ```text
 Using Azure DevOps MCP, create an Epic work item titled:
@@ -137,10 +158,10 @@ Return the IDs as <STORY-1-ID> through <STORY-5-ID>.
 
 **Track A:**
 ```text
-Using Jira MCP, list all issues in project SCRUM that are in To Do status.
+Using Jira MCP, list all issues in project <YOUR-PROJECT-KEY> that are in To Do status.
 For each issue return the key, summary, and status.
 ```
-Expected: SCRUM-2 through SCRUM-6 listed as To Do.
+Expected: your 5 stories listed as To Do.
 
 **Track B:**
 ```text
@@ -172,13 +193,13 @@ pytest -q tests/test_reminder_engine.py
 
 **Track A:**
 ```text
-Using Jira MCP, list all issues in project SCRUM that are in To Do status.
+List all issues in project <YOUR-PROJECT-KEY> that are in To Do status.
 For each issue return the key, summary, and status.
 ```
 
 **Track B:**
 ```text
-Using Azure DevOps MCP, list all work items in my project with state "To Do".
+List all work items in my project with state "To Do".
 Return ID, title, and state for each.
 ```
 
@@ -188,15 +209,12 @@ Return ID, title, and state for each.
 
 **Track A:**
 ```text
-Using Jira MCP, move SCRUM-2 to In Progress.
-```
-```text
-Using Jira MCP, assign SCRUM-2 to me.
+Move <STORY-1-KEY> to In Progress and assign <STORY-1-KEY> to me.
 ```
 
 **Track B:**
 ```text
-Using Azure DevOps MCP, update work item <STORY-1-ID> state to "Active" and assign it to me.
+Update work item <STORY-1-ID> state to "Active" and assign it to me.
 ```
 
 ---
@@ -205,13 +223,13 @@ Using Azure DevOps MCP, update work item <STORY-1-ID> state to "Active" and assi
 
 **Track A:**
 ```text
-Using Jira MCP, add a comment to SCRUM-2:
+Add a comment to <STORY-1-KEY>:
 "Starting work on reminder policy definition. Will document trigger rules, exclusions, and acceptance criteria."
 ```
 
 **Track B:**
 ```text
-Using Azure DevOps MCP, add a comment to work item <STORY-1-ID>:
+Add a comment to work item <STORY-1-ID>:
 "Starting work on reminder policy definition. Will document trigger rules, exclusions, and acceptance criteria."
 ```
 
@@ -230,8 +248,8 @@ Then ask Copilot to generate and post a plan for the policy story:
 
 **Track A:**
 ```text
-Create an implementation plan for SCRUM-2 based on the validate_policy function.
-Post it as a comment on SCRUM-2 in Jira.
+Create an implementation plan for <STORY-1-KEY> based on the validate_policy function.
+Post it as a comment on <STORY-1-KEY> in Jira.
 ```
 
 **Track B:**
@@ -268,9 +286,9 @@ pytest -q tests/test_reminder_engine.py -k "Policy or policy"
 **Track A:**
 ```text
 Using Jira MCP:
-1. Add a comment to SCRUM-2: "validate_policy implemented. Raises ValueError for invalid threshold and negative cooldown. All policy tests passing."
-2. Move SCRUM-2 to Done.
-3. Move SCRUM-5 to In Progress.
+1. Add a comment to <STORY-1-KEY>: "validate_policy implemented. Raises ValueError for invalid threshold and negative cooldown. All policy tests passing."
+2. Move <STORY-1-KEY> to Done.
+3. Move <STORY-2-KEY> to In Progress.
 ```
 
 **Track B:**
@@ -289,15 +307,13 @@ The three dataclasses (`Approval`, `ReminderAttempt`, `SchedulerRunResult`) are 
 
 **Track A:**
 ```text
-Using Jira MCP:
-1. Add a comment to SCRUM-5: "Data model reviewed. Approval, ReminderAttempt, SchedulerRunResult dataclasses are complete."
-2. Move SCRUM-5 to Done.
-3. Move SCRUM-6 to In Progress.
+1. Add a comment to <STORY-2-KEY>: "Data model reviewed. Approval, ReminderAttempt, SchedulerRunResult dataclasses are complete."
+2. Move <STORY-2-KEY> to Done.
+3. Move <STORY-3-KEY> to In Progress.
 ```
 
 **Track B:**
 ```text
-Using Azure DevOps MCP:
 1. Add a comment to <STORY-2-ID>: "Data model reviewed. Approval, ReminderAttempt, SchedulerRunResult dataclasses are complete."
 2. Update <STORY-2-ID> state to "Closed".
 3. Update <STORY-3-ID> state to "Active".
@@ -324,15 +340,13 @@ pytest -q tests/test_reminder_engine.py -k eligibility
 
 **Track A:**
 ```text
-Using Jira MCP:
-1. Add a comment to SCRUM-6: "Eligibility detection implemented. All boundary tests passing."
-2. Move SCRUM-6 to Done.
-3. Move SCRUM-3 to In Progress.
+1. Add a comment to <STORY-3-KEY>: "Eligibility detection implemented. All boundary tests passing."
+2. Move <STORY-3-KEY> to Done.
+3. Move <STORY-4-KEY> to In Progress.
 ```
 
 **Track B:**
 ```text
-Using Azure DevOps MCP:
 1. Add a comment to <STORY-3-ID>: "Eligibility detection implemented. All boundary tests passing."
 2. Update <STORY-3-ID> state to "Closed".
 3. Update <STORY-4-ID> state to "Active".
@@ -340,91 +354,13 @@ Using Azure DevOps MCP:
 
 ---
 
-## Step 8 — Implement Story 4: Scheduler
-
-**`send_reminder(approval, now) -> ReminderAttempt`**
-- No `@` in email → `outcome="FAILED"`, `reason="invalid recipient address"`
-- Valid email → set `approval.last_reminded_at = now`, `outcome="SENT"`, `reason="reminder dispatched"`
-
-**`run_scheduler_cycle(approvals, policy, now=None) -> SchedulerRunResult`**
-1. Resolve `run_at = now or utc_now()`
-2. Call `validate_policy(policy)`
-3. Find eligible approvals
-4. Send reminder for each
-5. Return `SchedulerRunResult(evaluated=..., eligible=..., attempts=[...])`
-
-```bash
-pytest -q tests/test_reminder_engine.py -k scheduler
-# Expected after implementation: all PASSED
-```
-
-**Track A:**
-```text
-Using Jira MCP:
-1. Add a comment to SCRUM-3: "Scheduler implemented. send_reminder handles bad email (FAILED) and valid email (SENT). All tests passing."
-2. Move SCRUM-3 to Done.
-3. Move SCRUM-4 to In Progress.
-```
-
-**Track B:**
-```text
-Using Azure DevOps MCP:
-1. Add a comment to <STORY-4-ID>: "Scheduler implemented. send_reminder handles bad email (FAILED) and valid email (SENT). All tests passing."
-2. Update <STORY-4-ID> state to "Closed".
-3. Update <STORY-5-ID> state to "Active".
-```
-
----
-
-## Step 9 — Implement Story 5: Evidence payload
-
-**Function:** `build_evidence_payload(result: SchedulerRunResult) -> dict`
-
-```python
-{
-  "evaluated": int,
-  "eligible":  int,
-  "sent":      int,
-  "failed":    int,
-  "attempts":  [{"approval_id", "recipient", "attempted_at" (ISO), "outcome", "reason"}]
-}
-```
-
-```bash
-pytest -q tests/test_reminder_engine.py
-# Expected: all 8 tests PASSED
-```
-
-Generate the evidence artifact:
-
-```bash
-python run_sprint_demo.py
-# Writes: evidence/fr001_scheduler_run.json
-```
-
-**Track A:**
-```text
-Using Jira MCP:
-1. Add a comment to SCRUM-4: "build_evidence_payload implemented and tested. evidence/fr001_scheduler_run.json generated. All 8 tests passing."
-2. Move SCRUM-4 to Done.
-```
-
-**Track B:**
-```text
-Using Azure DevOps MCP:
-1. Add a comment to <STORY-5-ID>: "build_evidence_payload implemented and tested. evidence/fr001_scheduler_run.json generated. All 8 tests passing."
-2. Update <STORY-5-ID> state to "Closed".
-```
-
----
-
-## Step 10 — Release sign-off on the epic
+## Step 8 — Release sign-off on the epic
 
 Verify all stories are closed:
 
 **Track A:**
 ```text
-Using Jira MCP, list all issues in project SCRUM and return their key, summary, and status.
+Using Jira MCP, list all issues in project <YOUR-PROJECT-KEY> and return their key, summary, and status.
 ```
 
 **Track B:**
@@ -436,14 +372,14 @@ Write the release recommendation:
 
 **Track A:**
 ```text
-Using Jira MCP, add a comment to SCRUM-1:
+Using Jira MCP, add a comment to <EPIC-KEY>:
 "FR-001 sprint increment complete.
-Stories closed: SCRUM-2, SCRUM-3, SCRUM-4, SCRUM-5, SCRUM-6.
+Stories closed: <STORY-1-KEY>, <STORY-2-KEY>, <STORY-3-KEY>, <STORY-4-KEY>, <STORY-5-KEY>.
 Evidence: evidence/fr001_scheduler_run.json generated locally.
 All unit tests passing (8/8).
 Go recommendation: YES — core reminder detection and scheduling implemented and validated with full audit trail."
 
-Then move SCRUM-1 to Done.
+Then move <EPIC-KEY> to Done.
 ```
 
 **Track B:**
@@ -515,7 +451,7 @@ the story — all without manual prompts between steps.
 **Track A (Jira):**
 
 ```text
-@story-implementer story=SCRUM-6 track=jira
+@story-implementer story=<STORY-3-KEY> track=jira
 ```
 
 **Track B (Azure DevOps):**
