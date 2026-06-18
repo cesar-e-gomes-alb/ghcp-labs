@@ -1,9 +1,9 @@
-# Lab 07 - Release Workflow and Infrastructure as Code
+# Lab 07 - Release Workflow and Infrastructure as Code (Java)
 
 **Duration:** ~90 min  
 **SDLC Phase:** Integration → Deployment → Release  
 **Autonomy Level:** 🟡 Human reviews, Copilot automates  
-**Prerequisites:** Git + a remote repository (GitHub or Azure DevOps Repos), VS Code with GitHub Copilot, [HVE Core](https://marketplace.visualstudio.com/items?itemName=ise-hve-essentials.hve-core) extension  
+**Prerequisites:** Java 17+, Maven or Gradle, Git + a remote repository (GitHub or Azure DevOps Repos), VS Code with GitHub Copilot, [HVE Core](https://marketplace.visualstudio.com/items?itemName=ise-hve-essentials.hve-core) extension  
 **Works with:** GitHub Issues · Azure DevOps Work Items · Jira (see Part 1 for tracker-specific steps)
 
 ---
@@ -26,7 +26,12 @@ Lab 07 is self-contained. It focuses on operationalizing release work by opening
 
 ```bash
 cd lab07
-pip install -r requirements.txt
+
+# Maven
+mvn install
+
+# Or Gradle
+./gradlew build
 ```
 
 ---
@@ -34,8 +39,9 @@ pip install -r requirements.txt
 ## The Scenario
 
 You've got a working release artifact set for Lab 07. Now it's time to:
+
 1. **Create a PR** with supply chain security context
-2. **Generate a bill-of-materials** and scan dependencies for vulnerabilities  
+2. **Generate a bill-of-materials** and scan dependencies for vulnerabilities
 3. **Build containerized configurations** with YAML and Docker Compose
 4. **Define infrastructure as code** with GitOps and observability patterns (Bicep or Terraform)
 5. **Validate and cost-estimate** everything locally
@@ -48,7 +54,7 @@ This lab is self-contained. Everything you need is created locally during the ex
 
 ### What you'll produce
 
-1. `requirements.txt` for local dependency scanning
+1. `pom.xml` (Maven) or `build.gradle` (Gradle) for dependency scanning
 2. `config.yml` for generic YAML practice
 3. `docker-compose.yml` for local container orchestration
 4. `main.bicep` or `main.tf` for local IaC authoring
@@ -149,6 +155,7 @@ Modern DevOps requires supply chain security awareness. You'll generate a bill-o
 ### What is an SBOM?
 
 A Software Bill of Materials (SBOM) is a machine-readable inventory of all dependencies in your software. It:
+
 - Lists every dependency and its version
 - Enables vulnerability tracking across your supply chain
 - Supports compliance audits and security policies
@@ -158,78 +165,133 @@ A Software Bill of Materials (SBOM) is a machine-readable inventory of all depen
 
 #### Task 1: Generate SBOM from dependencies (5 min)
 
-1. **Create a SBOM file from local dependencies:**
-   ```bash
-   # Navigate to your lab directory
-   cd lab07
-   
-   # Install the CycloneDX SBOM generator
-   python -m pip install cyclonedx-bom
-   
-   # Generate a CycloneDX SBOM from requirements.txt
-   python -m cyclonedx_py requirements -i requirements.txt 2>/dev/null > sbom.xml
-   cat sbom.xml
+If you don't yet have a build file in this directory, create a minimal one so you have real dependencies to scan:
+
+- **Maven** — ask Copilot:
+  ```
+  Generate a minimal pom.xml for a Java 17 project that includes
+  Spring Boot Web, Spring Data JPA, and Lombok as dependencies.
+  ```
+
+- **Gradle** — ask Copilot:
+  ```
+  Generate a minimal build.gradle for a Java 17 project that includes
+  Spring Boot Web, Spring Data JPA, and Lombok as dependencies.
+  ```
+
+**Maven — generate SBOM with CycloneDX:**
+
+1. Add the plugin to `pom.xml`:
+   ```xml
+   <build>
+     <plugins>
+       <plugin>
+         <groupId>org.cyclonedx</groupId>
+         <artifactId>cyclonedx-maven-plugin</artifactId>
+         <version>2.8.0</version>
+       </plugin>
+     </plugins>
+   </build>
    ```
 
-2. **Use Copilot to summarize:**
-   ```
-   Chat prompt: "Create a markdown summary of this CycloneDX SBOM showing:
-   - Total number of dependencies
-   - High-level dependency categories (web framework, database, testing, etc.)
-   - Any dependencies that appear outdated
-   
-   Format as a table with columns: Package, Version, Category"
+2. Run:
+   ```bash
+   mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+   # Output: target/bom.xml
+   cat target/bom.xml
    ```
 
-3. **Commit your SBOM:**
-   ```bash
-   git add sbom.xml
-   git commit -m "lab07: Add CycloneDX SBOM"
+**Gradle — generate SBOM with CycloneDX:**
+
+1. Add the plugin to `build.gradle`:
+   ```groovy
+   plugins {
+     id 'org.cyclonedx.bom' version '1.8.2'
+   }
    ```
+
+2. Run:
+   ```bash
+   ./gradlew cyclonedxBom
+   # Output: build/reports/bom.xml
+   cat build/reports/bom.xml
+   ```
+
+**Use Copilot to summarize the SBOM:**
+```
+Chat prompt: "Create a markdown summary of this CycloneDX SBOM showing:
+- Total number of dependencies
+- High-level dependency categories (web framework, database, testing, etc.)
+- Any dependencies that appear outdated
+
+Format as a table with columns: Package, Version, Category"
+```
+
+**Commit your SBOM:**
+```bash
+# Maven
+git add target/bom.xml
+git commit -m "lab07: Add CycloneDX SBOM"
+
+# Gradle
+git add build/reports/bom.xml
+git commit -m "lab07: Add CycloneDX SBOM"
+```
 
 #### Task 2: Vulnerability scanning (7 min)
 
-1. **Ask Copilot to scan for known vulnerabilities:**
-   ```
-   Chat prompt: "Analyze this requirements.txt for known CVEs and security issues:
-   
-   [paste contents of sbom.xml or requirements.txt]
-   
-   For each potential issue, provide:
-   - Package name
-   - Current version
-   - Known CVE ID
-   - Severity (LOW, MEDIUM, HIGH, CRITICAL)
-   - Recommended action"
-   ```
+**Option A — OWASP Dependency Check (Maven):**
+```bash
+mvn org.owasp:dependency-check-maven:check
+# Report: target/dependency-check-report.html
+# Opens a browser-friendly HTML report with CVE details
+```
 
-2. **Document findings:**
-   ```bash
-   # Create a vulnerability report
-   cat > SECURITY_SCAN.md << EOF
-   # Security Scan Report
-   
-   Date: $(date)
-   
-   ## Summary
-   - Total dependencies scanned: <N>
-   - High/Critical vulnerabilities: <count>
-   - Medium vulnerabilities: <count>
-   - Low vulnerabilities: <count>
-   
-   ## Findings
-   (Add Copilot's analysis here)
-   
-   ## Remediation Plan
-   (Add action items from Copilot)
-   EOF
-   ```
+**Option B — OWASP Dependency Check (Gradle):**
+```bash
+./gradlew dependencyCheckAnalyze
+# Report: build/reports/dependency-check-report.html
+```
 
-3. **Commit the security report:**
-   ```bash
-   git add SECURITY_SCAN.md
-   git commit -m "lab07: Add security vulnerability scan report"
-   ```
+**Option C — Copilot analysis** (if CLI tools are not installed):
+```
+Chat prompt: "Analyze this pom.xml (or build.gradle) for known CVEs and security issues.
+
+[paste your dependency list]
+
+For each potential issue, provide:
+- Artifact name and group
+- Current version
+- Known CVE ID
+- Severity (LOW, MEDIUM, HIGH, CRITICAL)
+- Recommended action"
+```
+
+**Document findings:**
+```bash
+cat > SECURITY_SCAN.md << EOF
+# Security Scan Report
+
+Date: $(date)
+
+## Summary
+- Total dependencies scanned: <N>
+- High/Critical vulnerabilities: <count>
+- Medium vulnerabilities: <count>
+- Low vulnerabilities: <count>
+
+## Findings
+(Add scan output or Copilot's analysis here)
+
+## Remediation Plan
+(Add action items from Copilot)
+EOF
+```
+
+```bash
+git add SECURITY_SCAN.md
+git commit -m "lab07: Add security vulnerability scan report"
+```
 
 ### Dependency Update Policy
 
@@ -240,7 +302,7 @@ Document this in your PR description:
 
 - **SBOM requirement**: All releases must include an updated SBOM
 - **Vulnerability scanning**: Mandatory before PR merge
-- **Severity thresholds**: 
+- **Severity thresholds**:
   - CRITICAL: Block merge immediately, remediate before release
   - HIGH: Address within 72 hours
   - MEDIUM: Address within 2 weeks
@@ -277,15 +339,15 @@ YAML is the lingua franca of infrastructure and DevOps. By 2026, YAML is insepar
      - Key-value pairs with various data types (strings, numbers, booleans)
      - Comments explaining each section
      - Proper indentation (2-space standard)
-     
+
      Make it a generic configuration file (not specific to one tool).
      Include a description, metadata, configuration section, and rules.
      ```
 
 3. **YAML essentials to understand:**
-   
+
    | Concept | Example |
-   |---------|----------|
+   |---------|---------|
    | **Key-Value Pairs** | `name: auth-service` |
    | **Nesting** | Indentation defines hierarchy |
    | **Lists** | `- item1` on separate lines with `-` |
@@ -323,22 +385,25 @@ Docker Compose is production-grade containerization defined entirely in YAML. Th
    - Chat prompt:
      ```
      Create a docker-compose.yml file that:
-     - Defines a Python service running the reminder engine
+     - Defines a Java Spring Boot service (built from a Dockerfile)
      - Includes a PostgreSQL database service
-     - Sets up environment variables for database connection
+     - Sets up environment variables for database connection (spring.datasource.url, etc.)
      - Configures volume mounts for data persistence
      - Defines a custom bridge network for service-to-service communication
      - Includes health checks for both services
      - Contains comments explaining each section
-     
+
      Make it production-ready with proper error handling.
      ```
 
 3. **Your docker-compose.yml will include:**
    ```yaml
    services:
-     reminder-engine:
-       # Python service running the reminder engine
+     app:
+       # Java Spring Boot service
+       build: .
+       environment:
+         SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/appdb
      postgres:
        # Database service
      # networks, volumes, health checks defined below
@@ -350,7 +415,7 @@ Docker Compose is production-grade containerization defined entirely in YAML. Th
    ```bash
    # Check syntax (requires Docker)
    docker compose config
-   
+
    # Or validate with Copilot:
    # "Validate this docker-compose.yml for syntax and best practices"
    ```
@@ -398,10 +463,10 @@ Bicep is an Azure-native DSL for Infrastructure-as-Code. It compiles to ARM temp
    - Chat prompt:
      ```
      Use the Microsoft Learn MCP tool to find official Bicep examples for:
-     - Creating an Azure Storage Account with encryption
+     - Creating an Azure Container Apps environment for a Java Spring Boot service
      - Configuring access controls and network security
-     - Adding monitoring and logging
-     
+     - Adding monitoring and logging with Application Insights
+
      Then generate a Bicep file with these resources.
      Include metadata comments explaining the deployment pattern.
      ```
@@ -437,9 +502,9 @@ Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more.
      ```
      Use the Microsoft Learn MCP to fetch official Terraform examples for:
      - Azure Resource Group with naming conventions
-     - Azure Storage Account with encryption and network security
+     - Azure Container Apps for deploying a Java Spring Boot container
      - Application Insights for observability
-     
+
      Generate a Terraform configuration that demonstrates modern cloud deployment.
      Include comments explaining resource dependencies.
      ```
@@ -451,16 +516,19 @@ Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more.
    # main.tf
    terraform {
      required_providers {
-       azurerm = "~> 3.0"
+       azurerm = {
+         source  = "hashicorp/azurerm"
+         version = "~> 3.0"
+       }
      }
    }
-   
+
    provider "azurerm" {
      features {}
    }
-   
+
    # Resources from Microsoft Learn samples
-   # (storage, monitoring, networking)
+   # (container apps, monitoring, networking)
    ```
 
 5. **Validate locally (no deployment):**
@@ -480,21 +548,21 @@ GitOps means **Git is your single source of truth for infrastructure and deploym
 1. **Add GitOps declaration to your IaC file:**
    - For Bicep, add a comment block:
      ```bicep
-     /* 
+     /*
      GitOps Deployment:
      This file is the source of truth for infrastructure state.
-     
+
      Deployment method (choose one for production):
      1. Azure DevOps Pipelines: Triggered on commit to main
      2. GitHub Actions: Automated deployment on merge
      3. ArgoCD (Kubernetes): Continuous sync from Git
      4. Flux (Kubernetes): GitOps reconciliation loop
-     
+
      All infrastructure changes must go through Git PR → Review → Merge → Deploy
      Never apply infrastructure changes directly (no manual "az" or "terraform apply" in production)
      */
      ```
-   
+
    - For Terraform, add to `main.tf`:
      ```hcl
      # GitOps Declaration
@@ -520,11 +588,11 @@ Deployed infrastructure without observability is operationally blind. By 2026, m
      ```
      Add an Azure Application Insights resource to this Bicep file for monitoring.
      Configure it to track:
-     - Application performance metrics
-     - Error rates and exceptions
-     - Request latency
+     - JVM metrics and garbage collection
+     - HTTP request latency and error rates
+     - Custom business events
      ```
-   
+
    - For Terraform, ask Copilot:
      ```
      Add an azurerm_application_insights resource to this Terraform configuration.
@@ -565,10 +633,10 @@ Together, they form the foundation of **reliable, auditable, 2026-grade DevOps**
 
 1. **Validate your YAML files:**
    ```bash
-   # Validate generic config.yml
-   python -c "import yaml; yaml.safe_load(open('config.yml')); print('✓ config.yml is valid')"
-   
-   # Ask Copilot to validate docker-compose.yml:
+   # Validate generic config.yml (python3 available in most devcontainers)
+   python3 -c "import yaml; yaml.safe_load(open('config.yml')); print('✓ config.yml is valid')"
+
+   # Or ask Copilot to validate docker-compose.yml:
    # "Validate this docker-compose.yml for syntax and best practices"
    ```
 
@@ -583,7 +651,7 @@ Together, they form the foundation of **reliable, auditable, 2026-grade DevOps**
    ```bash
    # For Bicep
    bicep build main.bicep  # (or use Copilot validation)
-   
+
    # For Terraform
    terraform init -backend=false
    terraform validate
@@ -594,9 +662,9 @@ Together, they form the foundation of **reliable, auditable, 2026-grade DevOps**
    Chat prompt: "Review this [Bicep/Terraform] code for security best practices:
    - Encryption at rest and in transit
    - Network isolation and access controls
-   - Secrets management
+   - Secrets management (no hardcoded credentials)
    - Monitoring and logging
-   
+
    Flag any issues and suggest fixes."
    ```
 
@@ -607,15 +675,16 @@ Together, they form the foundation of **reliable, auditable, 2026-grade DevOps**
 1. **Estimate deployment cost with Copilot:**
    ```
    Chat prompt: "Based on this Bicep/Terraform configuration, estimate monthly cost:
-   
+
    [paste your IaC]
-   
+
    Assume:
    - Standard Azure regions (East US)
    - 24/7 uptime
    - Typical storage: 100 GB/month
    - Typical data transfer: 1 TB/month egress
-   
+   - Java app: 2 vCPU, 4 GB RAM
+
    Provide:
    - Per-resource cost breakdown
    - Total estimated monthly cost
@@ -625,12 +694,12 @@ Together, they form the foundation of **reliable, auditable, 2026-grade DevOps**
 2. **Document cost assumptions in your PR:**
    ```markdown
    ## Cost Estimate
-   
-   - Storage Account: $X/month
-   - Application Insights: $Y/month  
+
+   - Container Apps environment: $X/month
+   - Application Insights: $Y/month
    - Data Transfer: $Z/month
    - **Total estimated: $TOTAL/month**
-   
+
    Assumptions: [list from Copilot analysis]
    Optimization opportunities: [list from Copilot]
    ```
@@ -669,10 +738,10 @@ By 2026, validation includes not just syntax and security, but also **cost aware
 
 ## Summary
 
-In this lab, you've learned **2026 DevOps best practices**:
+In this lab, you've learned **2026 DevOps best practices** with a Java toolchain:
 
-✅ **Supply Chain Security** — SBOM generation and vulnerability scanning  
-✅ **Container Fundamentals** — Docker Compose + YAML for reproducible deployments  
+✅ **Supply Chain Security** — CycloneDX SBOM from Maven/Gradle + OWASP Dependency Check  
+✅ **Container Fundamentals** — Docker Compose + YAML for reproducible Java deployments  
 ✅ **GitOps Patterns** — Git as source of truth for infrastructure  
 ✅ **Observability** — Monitoring and logging as first-class infrastructure concerns  
 ✅ **Cost Awareness** — Understanding infrastructure economics and optimization  
