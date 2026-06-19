@@ -3,8 +3,8 @@
 **Duration:** ~90 min  
 **SDLC Phase:** Integration → Deployment → Release  
 **Autonomy Level:** 🟡 Human reviews, Copilot automates  
-**Prerequisites:** Git + a remote repository (GitHub or Azure DevOps Repos), VS Code with GitHub Copilot, [HVE Core](https://marketplace.visualstudio.com/items?itemName=ise-hve-essentials.hve-core) extension  
-**Works with:** GitHub Issues · Azure DevOps Work Items · Jira (see Part 1 for tracker-specific steps)
+**Prerequisites:** Git + a remote repository (GitHub), VS Code with GitHub Copilot
+**Works with:** GitHub Issues
 
 ---
 
@@ -17,9 +17,9 @@ Lab 07 is self-contained. **Copilot is your pair programmer throughout**: it gen
 | **1** | Branch setup | 5 min | Copilot PR scaffold |
 | **2** | Supply chain security (hands-on) | 12 min | SBOM generation + vulnerability scanning |
 | **3** | Docker Compose — containerised deployment | 15 min | Copilot chat + inline YAML |
-| **4** | CI/CD pipeline as code | 20 min | GitHub Actions / Azure Pipelines YAML authoring |
-| **5** | IaC + GitOps | 25 min | MCP tools + code samples |
-| **6** | Open PR, validate, cost review, deploy | 13 min | Chat verification + cost analysis + deployment |
+| **4** | CI/CD pipeline as code | 20 min | GitHub Actions YAML authoring |
+| **5** | IaC + GitOps | 25 min | MCP tools + community skills (`azure-deployment-preflight`, `import-infrastructure-as-code`) |
+| **6** | Open PR, validate & deploy | 10 min | Chat verification + deployment |
 
 ---
 
@@ -42,54 +42,7 @@ Your path through the lab:
 3. **Containerise the service** — Docker Compose with Copilot-generated YAML
 4. **Author the CI/CD pipeline** — build → scan → validate-iac → approval → deploy stages
 5. **Provision infrastructure** — Bicep or Terraform generated and validated with Copilot + MCP
-6. **Open the PR and ship** — real artifacts, enforced gates, Copilot-assisted cost review
-
-## Lab 07 Starter Artifacts
-
-This lab is self-contained. Everything you need is created locally during the exercises.
-
-### What you'll produce
-
-1. `requirements.txt` for dependency scanning
-2. `docker-compose.yml` for containerised deployment
-3. `.github/workflows/lab07-pipeline.yml` (or `azure-pipelines.yml`) — CI/CD pipeline with supply-chain gates
-4. `main.bicep` or `main.tf` — IaC generated with Copilot and validated locally
-5. Optional evidence notes in `SECURITY_SCAN.md` and `COST_ESTIMATE.md`
-
-### Copy/paste checkpoints for your PR description
-
-Use this block in your PR body and replace placeholders:
-
-```markdown
-## Lab 07 handoff
-
-- Feature implemented: Release workflow and infrastructure setup
-- Test status: <paste local validation summary>
-- Evidence artifact: <path to your local scan or validation notes>
-- Tracker references: <optional issue or task IDs>
-
-## Validation
-
-- [ ] Release workflow reviewed
-- [ ] SBOM generated
-- [ ] Vulnerability scan completed
-- [ ] Local validation notes captured
-
-## Supply Chain Security
-
-- [ ] SBOM (bill-of-materials) generated from dependencies
-- [ ] Vulnerability scan completed: <summary of findings>
-- [ ] No unresolved CVEs with severity ≥ HIGH
-- [ ] Signed commits required for merge
-```
-
-### Suggested review prompts
-
-Use these prompts with Copilot during PR review:
-
-1. `Review this PR for completeness: does it include SBOM, vulnerability scan report, YAML/Docker Compose, and IaC files?`
-2. `Check whether the SECURITY_SCAN.md findings are addressed before merging.`
-3. `Suggest a concise merge checklist based on the changed files and validation results.`
+6. **Open the PR and ship** — real artifacts, enforced gates, Copilot-assisted review
 
 ---
 
@@ -109,7 +62,7 @@ Create your working branch now. The PR opens in Part 6, once real artifacts exis
    ```
    Chat prompt: “Draft a GitHub PR description for a lab07 deployment branch.
    Include sections: Description, Changes (SBOM, pipeline YAML, IaC),
-   Supply Chain Security checklist, Cost Estimate placeholder.
+   Supply Chain Security checklist.
    Use markdown. Keep it under 30 lines.”
    ```
    Save the draft — you’ll fill in real findings as you work through the lab.
@@ -226,6 +179,8 @@ Document this in your PR description:
 ### Key Insight
 
 Supply chain security is not optional. SBOM generation and vulnerability scanning are standard practices in enterprise DevOps.
+
+> **GitHub Advanced Security does this for you.** If your repository is on GitHub, [GitHub Advanced Security (GHAS)](https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security) automates the entire vulnerability workflow: Dependabot continuously monitors your dependencies against the GitHub Advisory Database and opens PRs to remediate vulnerable packages; secret scanning prevents credentials from ever being committed; and code scanning (powered by CodeQL) detects security weaknesses in your own source code. Rather than running ad-hoc scans locally, GHAS integrates these checks directly into your pull request flow — blocking merges until findings are resolved — so supply chain security becomes a policy, not a manual step.
 
 ---
 
@@ -445,29 +400,6 @@ Each job depends on the previous one (`needs:`). A CVE above the threshold fails
    git push origin lab07/pr-workflow
    ```
 
-**Azure Pipelines track (alternative):**
-
-If your team uses Azure DevOps Repos, create `azure-pipelines.yml` at the repo root:
-
-1. Ask Copilot:
-   ```
-   Chat prompt: "Translate the Lab07 GitHub Actions pipeline into Azure Pipelines YAML with
-   equivalent stages: Build → Scan → ValidateIaC → ManualApproval → Deploy (dry-run).
-   Keep the CycloneDX SBOM and pip-audit CVE scan steps.
-   Use 'condition: failed()' for evidence-upload tasks and an ADO Environment named
-   'production' for the approval gate."
-   ```
-
-2. Key structural differences:
-
-   | Concept | GitHub Actions | Azure Pipelines |
-   |---------|---------------|-----------------|
-   | Job sequencing | `needs:` | `dependsOn:` inside `stages:` |
-   | Conditional steps | `if: failure()` | `condition: failed()` |
-   | Manual gate | GitHub Environment + required reviewers | ADO Environment + Approvals and checks |
-   | Artifact upload | `upload-artifact` action | `PublishBuildArtifacts` task |
-   | IaC validation failure | `echo "::error::"` | `Write-Host "##vso[task.logissue type=error]"` |
-
 ---
 
 #### Task 2: Configure required status checks (5 min)
@@ -491,11 +423,11 @@ Required status checks turn optional CI runs into **merge blockers**. Without th
 2. Add **Required reviewers** (yourself or a teammate)
 3. The `manual-approval` job will pause at this gate until a reviewer approves in the Actions UI
 
-**Azure DevOps equivalent:**
+**Code reviewer on the PR:**
 
-1. Go to **Pipelines → Environments → New environment** → name it `production`
-2. Add an **Approvals and checks** rule with required approvers
-3. Reference it in the `ManualApproval` stage — the pipeline blocks until approved
+1. On the PR page, go to **Reviewers** → add **Copilot** as a code reviewer
+2. Copilot will post a structured code-quality review directly on the PR, separate from the pipeline approval gate
+3. Resolve Copilot's review comments before the `manual-approval` gate is triggered
 
 ---
 
@@ -542,16 +474,33 @@ Embedding SBOM generation and CVE scanning as **pipeline job steps** with `if: f
 
 ## Part 5 — Infrastructure-as-Code + GitOps (25 min)
 
-Modern infrastructure must be **versioned** and **auditable**. This section teaches IaC fundamentals alongside GitOps patterns.
+Modern infrastructure must be **versioned** and **auditable**. This section teaches IaC fundamentals alongside GitOps patterns — and uses community Copilot **skills** from [awesome-copilot.github.com/skills](https://awesome-copilot.github.com/skills/) to supercharge the workflow.
+
+### Skill Installation (2 min)
+
+Before you write a single line of IaC, install the relevant Copilot skill for your chosen track. Skills extend Copilot with domain-specific knowledge — giving it deep understanding of Bicep validation workflows or Terraform AVM module patterns.
+
+**Step 2 — Verify Copilot can see the skill:**
+
+Open Copilot Chat and type:
+```
+What skills do you have available for infrastructure deployments?
+```
+
+Copilot should describe the skill you just installed. If not, reload the VS Code window (`Ctrl+Shift+P → Developer: Reload Window`) and try again. If you can't find them or want to extend further, find your necessary skills on [awesome-copilot.github.com/skills](https://awesome-copilot.github.com/skills/)
+
+> **Where these skills come from:** The skill files in `.github/skills/` are sourced directly from [github/awesome-copilot](https://github.com/github/awesome-copilot) — the community-curated library of VS Code Copilot skills. Anyone can contribute or install skills from [awesome-copilot.github.com/skills](https://awesome-copilot.github.com/skills/).
+
+---
 
 ### Subsection A: Infrastructure-as-Code Fundamentals (18 min)
 
 You have **two tracks**: Choose Bicep (Azure-native) or Terraform (multi-cloud).
 
-#### Track A: Bicep (Azure-native)
+#### Track A: Bicep (Azure-native) — with `azure-deployment-preflight` skill
 
 **What is Bicep?**  
-Bicep is an Azure-native DSL for Infrastructure-as-Code. It compiles to ARM templates.
+Bicep is an Azure-native DSL for Infrastructure-as-Code. It compiles to ARM templates. The `azure-deployment-preflight` skill guides Copilot through full preflight validation: syntax check → what-if analysis → permissions check → Markdown report.
 
 ##### Your tasks
 
@@ -561,16 +510,15 @@ Bicep is an Azure-native DSL for Infrastructure-as-Code. It compiles to ARM temp
    ```
 
 2. **Use Microsoft Learn MCP to build the Bicep template:**
-   - Chat prompt:
-     ```
-     Use the Microsoft Learn MCP tool to find official Bicep examples for:
-     - Creating an Azure Storage Account with encryption
-     - Configuring access controls and network security
-     - Adding monitoring and logging
-     
-     Then generate a Bicep file with these resources.
-     Include metadata comments explaining the deployment pattern.
-     ```
+   ```
+   Chat prompt: "Use the Microsoft Learn MCP tool to find official Bicep examples for:
+   - Creating an Azure Storage Account with encryption
+   - Configuring access controls and network security
+   - Adding monitoring and logging
+   
+   Then generate a Bicep file with these resources.
+   Include metadata comments explaining the deployment pattern."
+   ```
 
 3. **Copilot will use the MCP to fetch code samples** from Microsoft Learn documentation
 
@@ -579,17 +527,30 @@ Bicep is an Azure-native DSL for Infrastructure-as-Code. It compiles to ARM temp
    - Verify security best practices (encryption, access control)
    - Check for monitoring configuration
 
-5. **Validate locally (no Azure deployment):**
-   ```bash
-   # Just validate syntax; don't deploy
-   # bicep CLI: install from https://aka.ms/install-bicep if not present
-   bicep build main.bicep  # (or ask Copilot: "Validate this Bicep syntax")
+5. **Run preflight validation using the installed skill:**
+   ```
+   Chat prompt: "Run a preflight validation on lab07/main.bicep.
+   Follow the azure-deployment-preflight skill:
+   - Validate Bicep syntax with 'bicep build'
+   - Check for what-if changes at resource group scope
+   - Generate a preflight-report.md summarising all findings"
    ```
 
-#### Track B: Terraform (Multi-cloud)
+   Copilot will:
+   - Run `bicep build main.bicep --stdout` to catch syntax errors
+   - Execute `az deployment group what-if` (or note it locally if Azure CLI is not authenticated)
+   - Write a `preflight-report.md` in your working directory
+
+6. **Commit your Bicep file and preflight report:**
+   ```bash
+   git add main.bicep preflight-report.md
+   git commit -m "lab07: Add Bicep IaC + preflight validation report"
+   ```
+
+#### Track B: Terraform (Multi-cloud) — with `import-infrastructure-as-code` skill
 
 **What is Terraform?**  
-Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more.
+Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more. The `import-infrastructure-as-code` skill guides Copilot through Azure Verified Modules (AVM) — the Microsoft-curated, production-grade Terraform module library — and produces AVM-based configurations ready for `terraform validate`.
 
 ##### Your tasks
 
@@ -598,25 +559,30 @@ Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more.
    touch main.tf variables.tf outputs.tf
    ```
 
-2. **Use Microsoft Learn MCP for Terraform + Azure:**
-   - Chat prompt:
-     ```
-     Use the Microsoft Learn MCP to fetch official Terraform examples for:
-     - Azure Resource Group with naming conventions
-     - Azure Storage Account with encryption and network security
-     
-     Generate a Terraform configuration that demonstrates modern cloud deployment.
-     Include comments explaining resource dependencies.
-     ```
+2. **Use the skill + Microsoft Learn MCP for Terraform + Azure:**
+   ```
+   Chat prompt: "Use the import-infrastructure-as-code skill and the Microsoft Learn MCP
+   to generate a Terraform configuration using Azure Verified Modules (AVM) for:
+   - Azure Resource Group with naming conventions
+   - Azure Storage Account with encryption and network security
+   
+   Produce AVM-based Terraform files (main.tf, variables.tf, outputs.tf) with:
+   - Correct required_providers block pinned to azurerm ~> 4.0
+   - Comments explaining each resource and its AVM module source
+   - Validation-ready output (no backend config required)"
+   ```
 
-3. **Copilot will retrieve code samples** from Microsoft Learn
+3. **Copilot will retrieve AVM module examples** using the skill's knowledge of Azure Verified Modules
 
-4. **Structure your Terraform:**
+4. **Expected Terraform structure from the skill:**
    ```hcl
-   # main.tf
+   # main.tf — generated with import-infrastructure-as-code skill
    terraform {
      required_providers {
-       azurerm = "~> 3.0"
+       azurerm = {
+         source  = "hashicorp/azurerm"
+         version = "~> 4.0"
+       }
      }
    }
    
@@ -624,11 +590,31 @@ Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more.
      features {}
    }
    
-   # Resources from Microsoft Learn samples
-   # (storage, monitoring, networking)
+   # Azure Verified Module: Resource Group
+   module "resource_group" {
+     source  = "Azure/avm-res-resources-resourcegroup/azurerm"
+     version = "~> 0.1"
+     # ...
+   }
+   
+   # Azure Verified Module: Storage Account
+   module "storage" {
+     source  = "Azure/avm-res-storage-storageaccount/azurerm"
+     version = "~> 0.4"
+     # ...
+   }
    ```
 
-5. **Validate locally (no deployment):**
+5. **Validate using the skill's workflow:**
+   ```
+   Chat prompt: "Using the import-infrastructure-as-code skill,
+   validate that lab07/main.tf is ready for planning:
+   - Check the required_providers block
+   - Verify AVM module sources are correctly referenced
+   - Run: terraform init -backend=false && terraform validate"
+   ```
+
+6. **Run validation locally (no deployment):**
    ```bash
    # terraform CLI: install from https://developer.hashicorp.com/terraform/install if not present
    terraform init -backend=false
@@ -636,53 +622,19 @@ Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more.
    # Don't run "terraform apply" — validation only
    ```
 
-### Subsection B: GitOps Pattern (5 min)
-
-GitOps means **Git is your single source of truth for infrastructure and deployment state**. Your IaC files in Git become the authoritative declaration of your infrastructure.
-
-#### Your task
-
-1. **Add GitOps declaration to your IaC file:**
-   - For Bicep, add a comment block:
-     ```bicep
-     /* 
-     GitOps Deployment:
-     This file is the source of truth for infrastructure state.
-     
-     Deployment method (choose one for production):
-     1. Azure DevOps Pipelines: Triggered on commit to main
-     2. GitHub Actions: Automated deployment on merge
-     3. ArgoCD (Kubernetes): Continuous sync from Git
-     4. Flux (Kubernetes): GitOps reconciliation loop
-     
-     All infrastructure changes must go through Git PR → Review → Merge → Deploy
-     Never apply infrastructure changes directly (no manual "az" or "terraform apply" in production)
-     */
-     ```
-   
-   - For Terraform, add to `main.tf`:
-     ```hcl
-     # GitOps Declaration
-     # This file is version-controlled and represents the desired infrastructure state.
-     # Deployment flows: Git commit -> CI/CD pipeline -> terraform apply
-     # All changes tracked in Git history for auditability.
-     ```
-
-3. **Commit your IaC:**
+7. **Commit your Terraform configuration:**
    ```bash
-   git add main.bicep  # or main.tf/variables.tf/outputs.tf
-   git commit -m "lab07: Add IaC with GitOps pattern"
-   git push origin lab07/pr-workflow
+   git add main.tf variables.tf outputs.tf
+   git commit -m "lab07: Add AVM-based Terraform IaC (import-infrastructure-as-code skill)"
    ```
 
 ### Key Insight
 
-**Infrastructure-as-Code** ensures your infrastructure is versioned and reproducible.  
-**GitOps** ensures all changes flow through Git and CI/CD, never manual.
+**Infrastructure-as-Code** ensures your infrastructure is versioned and reproducible. Using community **skills** from awesome-copilot gives Copilot the domain knowledge to validate correctly and follow Azure-approved module patterns — rather than generating generic code from general knowledge.  
 
 ---
 
-## Part 6 — Open PR, Validate, Cost Review & Deploy (13 min)
+## Part 6 — Open PR, Validate & Deploy (10 min)
 
 ### Your tasks
 
@@ -695,8 +647,7 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
    Chat prompt: “Write a PR description for the lab07/pr-workflow branch.
    Summarise: the SBOM and CVE scan findings (Part 2), the CI/CD pipeline
    structure with its security gates (Part 4), and the IaC resources defined
-   (Part 5). Include the supply chain security checklist and cost estimate
-   placeholder.”
+   (Part 5). Include the supply chain security checklist."
    ```
 
 2. **Open the PR:**
@@ -726,17 +677,28 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
 
 #### Task 3: Validate infrastructure code (2 min)
 
-1. **Validate Bicep or Terraform (no deployment):**
+1. **Validate using the installed skill (Bicep track):**
+   ```
+   Chat prompt: "Run a preflight validation on lab07/main.bicep using
+   the azure-deployment-preflight skill. Generate or update preflight-report.md."
+   ```
+   Or run directly:
    ```bash
-   # For Bicep
-   bicep build main.bicep  # (or use Copilot validation)
-   
-   # For Terraform
+   bicep build main.bicep
+   ```
+
+2. **Validate using the installed skill (Terraform track):**
+   ```
+   Chat prompt: "Using the import-infrastructure-as-code skill,
+   confirm lab07/main.tf is AVM-compliant and run terraform validate."
+   ```
+   Or run directly:
+   ```bash
    terraform init -backend=false
    terraform validate
    ```
 
-2. **Security review with Copilot:**
+3. **Security review with Copilot:**
    ```
    Chat prompt: "Review this [Bicep/Terraform] code for security best practices:
    - Encryption at rest and in transit
@@ -747,47 +709,34 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
    Flag any issues and suggest fixes."
    ```
 
-#### Task 4: Cost estimation (3 min)
+#### Task 4: Request code review on GitHub (2 min)
 
+Code review happens in the PR on **github.com** — not in the IDE. Use Copilot's review features built into the GitHub PR UI.
 
+1. **Open your PR on github.com:**
+   - Go to your repository → **Pull requests** → open `lab07/pr-workflow`
 
-1. **Estimate deployment cost with Copilot:**
-   ```
-   Chat prompt: "Based on this Bicep/Terraform configuration, estimate monthly cost:
-   
-   [paste your IaC]
-   
-   Assume:
-   - Standard Azure regions (East US)
-   - 24/7 uptime
-   - Typical storage: 100 GB/month
-   - Typical data transfer: 1 TB/month egress
-   
-   Provide:
-   - Per-resource cost breakdown
-   - Total estimated monthly cost
-   - Cost optimization recommendations"
-   ```
+2. **Start a Copilot code review:**
+   - On the PR page, click **Reviewers** (top-right sidebar) → select **Copilot**
+   - GitHub Copilot will analyse the diff and post inline review comments automatically
+   - Copilot comments appear in the **Files changed** tab alongside human review comments
 
-2. **Document cost assumptions in your PR:**
-   ```markdown
-   ## Cost Estimate
-   
-   - Storage Account: $X/month
-   - Application Insights: $Y/month  
-   - Data Transfer: $Z/month
-   - **Total estimated: $TOTAL/month**
-   
-   Assumptions: [list from Copilot analysis]
-   Optimization opportunities: [list from Copilot]
-   ```
+3. **Work through Copilot's comments:**
+   - Read each inline comment in **Files changed**
+   - For each suggestion: accept it, push a fix, or reply with a justification to dismiss it
+   - Resolve threads as you address them — unresolved threads block merge if branch protection requires it
 
-3. **Commit your cost review:**
-   ```bash
-   git add COST_ESTIMATE.md  # (or include in PR description)
-   git commit -m "lab07: Add infrastructure cost analysis"
-   git push origin lab07/pr-workflow
-   ```
+4. **Request Copilot as a code reviewer:**
+   - In the **Reviewers** sidebar, add **Copilot** as a code reviewer — it will post a structured code-quality review as a reviewer, separate from the inline diff comments in step 2
+   - If your repository defines a `CODEOWNERS` file, GitHub automatically requests the correct reviewer based on which files were changed; no manual assignment is needed
+   - To set up `CODEOWNERS`:
+     ```
+     # .github/CODEOWNERS
+     lab07/  @your-team/backend-reviewers
+     .github/workflows/  @your-team/platform-engineers
+     ```
+
+5. **Use the suggested review prompts** from the checklist at the top of this lab if you want additional Copilot chat analysis inside the PR conversation tab.
 
 #### Task 5: Merge when ready (optional)
 
@@ -807,7 +756,7 @@ git push origin --delete lab07/pr-workflow
 
 ### Key Insight
 
-Validation covers syntax, security, and **cost awareness**. Engineers who understand infrastructure economics ship more confidently.
+Validation covers syntax and security before every merge.
 
 ---
 
@@ -820,8 +769,8 @@ In this lab, you’ve practised **Copilot-assisted deployment**:
 ✅ **CI/CD Pipeline Authoring** — build → scan → validate-iac → approval → deploy in GitHub Actions or Azure Pipelines  
 ✅ **Policy-as-Code** — CVE and IaC failures as required status checks, not markdown checklists  
 ✅ **Infrastructure-as-Code** — Bicep or Terraform generated with Copilot + MCP, validated locally  
+✅ **Community Copilot Skills** — `azure-deployment-preflight` (Bicep preflight + what-if) and `import-infrastructure-as-code` (AVM-based Terraform) from [awesome-copilot.github.com/skills](https://awesome-copilot.github.com/skills/)
 ✅ **GitOps Patterns** — Git as single source of truth for infrastructure state  
-✅ **Cost Awareness** — Copilot-assisted infrastructure economics before deployment  
 ✅ **PR Authoring** — Copilot writes the PR description from your branch diff, not from a template  
 
 These skills form the foundation of **Copilot-assisted DevOps** practice.
