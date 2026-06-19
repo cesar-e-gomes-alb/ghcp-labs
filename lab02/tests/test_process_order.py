@@ -53,35 +53,65 @@ class TestProcessOrder:
 
     # Path 1: invalid order
     def test_invalid_order_returns_errors(self):
-        # TODO: Create an order with no items and call process_order.
-        #       Assert status == "invalid" and "errors" key is present.
-        pytest.skip("TODO: implement this test")
+        order = make_test_order(items=[])
+        result = process_order(order, "tok_xxx")
+        assert result["status"] == "invalid"
+        assert "errors" in result
+        assert any("at least one item" in e for e in result["errors"])
 
     # Path 2: DB save failure
     @patch("order_processor.httpx.post")
     def test_db_save_failure(self, mock_post):
-        # TODO: Pass a connection that has NO orders table so the INSERT fails.
-        #       Assert status == "error".
-        pytest.skip("TODO: implement this test")
+        order = make_test_order()
+        empty_conn = sqlite3.connect(":memory:")  # no table created
+        result = process_order(order, "tok_xxx", conn=empty_conn)
+        assert result["status"] == "error"
+        assert "Failed to save order" in result["message"]
+        empty_conn.close()
 
     # Path 3: successful payment
     @patch("order_processor.httpx.post")
     def test_successful_payment(self, mock_post):
-        # TODO: Make mock_post return a response whose .json() is {"id": "PAY-123"}.
-        #       Don't forget .raise_for_status should do nothing (default mock).
-        #       Assert status == "ok" and payment_id == "PAY-123".
-        pytest.skip("TODO: implement this test")
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"id": "PAY-123"}
+        mock_resp.raise_for_status.return_value = None
+        mock_post.return_value = mock_resp
+
+        order = make_test_order()
+        conn = setup_db()
+        result = process_order(order, "tok_xxx", conn=conn)
+
+        assert result["status"] == "ok"
+        assert result["payment_id"] == "PAY-123"
+        assert result["total"] == 20.00
+        conn.close()
 
     # Path 4: payment HTTP error (e.g. 402 Payment Required)
     @patch("order_processor.httpx.post")
     def test_payment_http_error(self, mock_post):
-        # TODO: Make .raise_for_status() raise httpx.HTTPStatusError("402", request=..., response=...).
-        #       Assert status == "payment_failed".
-        pytest.skip("TODO: implement this test")
+        mock_resp = MagicMock()
+        mock_request = MagicMock()
+        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "402 Payment Required", request=mock_request, response=mock_resp
+        )
+        mock_post.return_value = mock_resp
+
+        order = make_test_order()
+        conn = setup_db()
+        result = process_order(order, "tok_xxx", conn=conn)
+
+        assert result["status"] == "payment_failed"
+        assert "402" in result["message"]
+        conn.close()
 
     # Path 5: payment timeout
     @patch("order_processor.httpx.post")
     def test_payment_timeout(self, mock_post):
-        # TODO: Set mock_post.side_effect = httpx.TimeoutException("timed out")
-        #       Assert status == "payment_timeout".
-        pytest.skip("TODO: implement this test")
+        mock_post.side_effect = httpx.TimeoutException("timed out")
+
+        order = make_test_order()
+        conn = setup_db()
+        result = process_order(order, "tok_xxx", conn=conn)
+
+        assert result["status"] == "payment_timeout"
+        conn.close()
