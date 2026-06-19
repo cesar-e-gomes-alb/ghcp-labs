@@ -19,7 +19,7 @@ Lab 07 is self-contained. **Copilot is your pair programmer throughout**: it gen
 | **3** | Docker Compose — containerised deployment | 15 min | Copilot chat + inline YAML |
 | **4** | CI/CD pipeline as code | 20 min | GitHub Actions / Azure Pipelines YAML authoring |
 | **5** | IaC + GitOps | 25 min | MCP tools + code samples |
-| **6** | Open PR, validate, cost review, deploy | 13 min | Chat verification + cost analysis + deployment |
+| **6** | Open PR, validate & deploy | 10 min | Chat verification + deployment |
 
 ---
 
@@ -48,54 +48,7 @@ Your path through the lab:
 3. **Containerise the service** — Docker Compose with Copilot-generated YAML for a Spring Boot app
 4. **Author the CI/CD pipeline** — build → scan → validate-iac → approval → deploy stages
 5. **Provision infrastructure** — Bicep or Terraform generated and validated with Copilot + MCP
-6. **Open the PR and ship** — real artifacts, enforced gates, Copilot-assisted cost review
-
-## Lab 07 Starter Artifacts
-
-This lab is self-contained. Everything you need is created locally during the exercises.
-
-### What you'll produce
-
-1. `pom.xml` (Maven) or `build.gradle` (Gradle) for dependency scanning
-2. `docker-compose.yml` for containerised deployment
-3. `.github/workflows/lab07-pipeline.yml` (or `azure-pipelines.yml`) — CI/CD pipeline with supply-chain gates
-4. `main.bicep` or `main.tf` — IaC generated with Copilot and validated locally
-5. Optional evidence notes in `SECURITY_SCAN.md` and `COST_ESTIMATE.md`
-
-### Copy/paste checkpoints for your PR description
-
-Use this block in your PR body and replace placeholders:
-
-```markdown
-## Lab 07 handoff
-
-- Feature implemented: Release workflow and infrastructure setup
-- Test status: <paste local validation summary>
-- Evidence artifact: <path to your local scan or validation notes>
-- Tracker references: <optional issue or task IDs>
-
-## Validation
-
-- [ ] Release workflow reviewed
-- [ ] SBOM generated
-- [ ] Vulnerability scan completed
-- [ ] Local validation notes captured
-
-## Supply Chain Security
-
-- [ ] SBOM (bill-of-materials) generated from dependencies
-- [ ] Vulnerability scan completed: <summary of findings>
-- [ ] No unresolved CVEs with severity ≥ HIGH
-- [ ] Signed commits required for merge
-```
-
-### Suggested review prompts
-
-Use these prompts with Copilot during PR review:
-
-1. `Review this PR for completeness: does it include SBOM, vulnerability scan report, YAML/Docker Compose, and IaC files?`
-2. `Check whether the SECURITY_SCAN.md findings are addressed before merging.`
-3. `Suggest a concise merge checklist based on the changed files and validation results.`
+6. **Open the PR and ship** — real artifacts, enforced gates, Copilot-assisted review
 
 ---
 
@@ -115,7 +68,7 @@ Create your working branch now. The PR opens in Part 6, once real artifacts exis
    ```
    Chat prompt: “Draft a GitHub PR description for a lab07 deployment branch (Java/Spring Boot).
    Include sections: Description, Changes (SBOM, pipeline YAML, IaC),
-   Supply Chain Security checklist, Cost Estimate placeholder.
+   Supply Chain Security checklist.
    Use markdown. Keep it under 30 lines.”
    ```
    Save the draft — you’ll fill in real findings as you work through the lab.
@@ -763,7 +716,7 @@ GitOps means **Git is your single source of truth for infrastructure and deploym
 
 ---
 
-## Part 6 — Open PR, Validate, Cost Review & Deploy (13 min)
+## Part 6 — Open PR, Validate & Deploy (10 min)
 
 ### Your tasks
 
@@ -776,8 +729,7 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
    Chat prompt: “Write a PR description for the lab07/pr-workflow branch (Java/Spring Boot).
    Summarise: the SBOM and CVE scan findings (Part 2), the CI/CD pipeline
    structure with its security gates (Part 4), and the IaC resources defined
-   (Part 5). Include the supply chain security checklist and cost estimate
-   placeholder.”
+   (Part 5). Include the supply chain security checklist."
    ```
 
 2. **Open the PR:**
@@ -828,46 +780,28 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
    Flag any issues and suggest fixes."
    ```
 
-#### Task 4: Cost estimation (3 min)
+#### Task 4: Request code review on GitHub (2 min)
 
-1. **Estimate deployment cost with Copilot:**
-   ```
-   Chat prompt: "Based on this Bicep/Terraform configuration, estimate monthly cost:
+Code review happens in the PR on **github.com** — not in the IDE. Use Copilot's review features built into the GitHub PR UI.
 
-   [paste your IaC]
+1. **Open your PR on github.com:**
+   - Go to your repository → **Pull requests** → open `lab07/pr-workflow`
 
-   Assume:
-   - Standard Azure regions (East US)
-   - 24/7 uptime
-   - Typical storage: 100 GB/month
-   - Typical data transfer: 1 TB/month egress
-   - Java app: 2 vCPU, 4 GB RAM
+2. **Start a Copilot code review:**
+   - On the PR page, click **Reviewers** (top-right sidebar) → select **Copilot**
+   - GitHub Copilot will analyse the diff and post inline review comments automatically
+   - Copilot comments appear in the **Files changed** tab alongside human review comments
 
-   Provide:
-   - Per-resource cost breakdown
-   - Total estimated monthly cost
-   - Cost optimization recommendations"
-   ```
+3. **Work through Copilot's comments:**
+   - Read each inline comment in **Files changed**
+   - For each suggestion: accept it, push a fix, or reply with a justification to dismiss it
+   - Resolve threads as you address them — unresolved threads block merge if branch protection requires it
 
-2. **Document cost assumptions in your PR:**
-   ```markdown
-   ## Cost Estimate
+4. **Request a human reviewer** once Copilot comments are resolved:
+   - In the **Reviewers** sidebar, add a teammate
+   - They will see a clean diff with Copilot threads already resolved
 
-   - Container Apps environment: $X/month
-   - Application Insights: $Y/month
-   - Data Transfer: $Z/month
-   - **Total estimated: $TOTAL/month**
-
-   Assumptions: [list from Copilot analysis]
-   Optimization opportunities: [list from Copilot]
-   ```
-
-3. **Commit your cost review:**
-   ```bash
-   git add COST_ESTIMATE.md  # (or include in PR description)
-   git commit -m "lab07: Add infrastructure cost analysis"
-   git push origin lab07/pr-workflow
-   ```
+5. **Use the suggested review prompts** from the checklist at the top of this lab if you want additional Copilot chat analysis inside the PR conversation tab.
 
 #### Task 5: Merge when ready (optional)
 
@@ -887,7 +821,7 @@ git push origin --delete lab07/pr-workflow
 
 ### Key Insight
 
-Validation covers syntax, security, and **cost awareness**. Engineers who understand infrastructure economics ship more confidently.
+Validation covers syntax and security before every merge.
 
 ---
 
@@ -901,7 +835,6 @@ In this lab, you’ve practised **Copilot-assisted deployment** with a Java tool
 ✅ **Policy-as-Code** — CVE and IaC failures as required status checks, not markdown checklists  
 ✅ **Infrastructure-as-Code** — Bicep or Terraform generated with Copilot + MCP, validated locally  
 ✅ **GitOps Patterns** — Git as single source of truth for infrastructure state  
-✅ **Cost Awareness** — Copilot-assisted infrastructure economics before deployment  
 ✅ **PR Authoring** — Copilot writes the PR description from your branch diff, not from a template  
 
 These skills form the foundation of **Copilot-assisted DevOps** practice.
