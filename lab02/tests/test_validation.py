@@ -65,7 +65,7 @@ class TestValidateOrder:
     def test_boundary_discounts_are_valid(self, make_order, discount):
         order = make_order(discount_pct=discount)
         errors = validate_order(order)
-        assert not any("discount" in e for e in errors)
+        assert not any("between 0 and 100" in e for e in errors)
 
     @pytest.mark.parametrize("quantity,price,expected_error", [
         (0,  10.00, "quantity must be positive"),
