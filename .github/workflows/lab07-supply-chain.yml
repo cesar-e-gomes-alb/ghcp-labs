@@ -1,0 +1,135 @@
+name: Lab07 Supply-Chain CI/CD
+
+# Triggers: pushes to the feature branch and PRs targeting main.
+on:
+  push:
+    branches:
+      - lab07/pr-workflow
+  pull_request:
+    branches:
+      - main
+
+# Least-privilege default token permissions.
+permissions:
+  contents: read
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 1. BUILD — install deps and generate a CycloneDX SBOM.
+  # ───────────────────────────────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r lab07/requirements.txt
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          pip install cyclonedx-bom
+          python -m cyclonedx_py requirements -i lab07/requirements.txt > lab07/sbom.xml
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: lab07/sbom.xml
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 2. SCAN — audit dependencies for known CVEs.
+  # ───────────────────────────────────────────────────────────────────────────
+  scan:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download SBOM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: lab07
+
+      - name: Run pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r lab07/requirements.txt --format=json -o lab07/cve-report.json
+
+      - name: Upload CVE report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cve-report
+          path: lab07/cve-report.json
+
+      - name: Surface scan failure
+        if: failure()
+        run: |
+          echo "::error::Dependency scan failed — known vulnerabilities detected. See the 'cve-report' artifact."
+          exit 1
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 3. VALIDATE-IAC — validate Bicep and/or Terraform if present.
+  # ───────────────────────────────────────────────────────────────────────────
+  validate-iac:
+    runs-on: ubuntu-latest
+    needs: scan
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Bicep
+        if: hashFiles('lab07/main.bicep') != ''
+        run: |
+          az bicep install
+          az bicep build --file lab07/main.bicep
+
+      - name: Validate Terraform
+        if: hashFiles('lab07/main.tf') != ''
+        run: |
+          cd lab07
+          terraform init -backend=false
+          terraform validate
+
+      - name: Surface IaC failure
+        if: failure()
+        run: |
+          echo "::error::IaC validation failed."
+          exit 1
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 4. MANUAL-APPROVAL — gated by the 'production' environment.
+  #    Configure required reviewers under Settings > Environments > production.
+  # ───────────────────────────────────────────────────────────────────────────
+  manual-approval:
+    runs-on: ubuntu-latest
+    needs: validate-iac
+    environment: production
+    steps:
+      - name: Await approval
+        run: echo "All gates passed. Pending approval."
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 5. DEPLOY — dry-run only. No real infrastructure is changed.
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: manual-approval
+    steps:
+      - name: Deployment dry-run
+        run: |
+          echo "Would run: az deployment group create --what-if"
+          echo "Would run: terraform plan"
