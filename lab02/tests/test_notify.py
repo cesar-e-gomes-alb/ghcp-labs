@@ -19,7 +19,7 @@ Hints (try on your own first!):
 import pytest
 import httpx
 from unittest.mock import AsyncMock, MagicMock, patch
-from order_processor import Order, OrderItem, notify_customer
+from order_processor import Order, OrderItem, notify_customer, NOTIFICATION_URL
 
 
 def make_test_order():
@@ -34,25 +34,38 @@ class TestNotifyCustomer:
 
     @pytest.mark.asyncio
     async def test_successful_notification(self):
-        # TODO:
-        # 1. Create a mock client (AsyncMock with spec=httpx.AsyncClient)
-        # 2. Create a mock response with status_code = 200
-        # 3. Set mock_client.post.return_value = mock_response
-        # 4. Call await notify_customer(order, "Your order is confirmed!", client=mock_client)
-        # 5. Assert result is True
-        # 6. Assert mock_client.post was awaited once with correct URL and JSON
-        pytest.skip("TODO: implement this test")
+        mock_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_client.post.return_value = mock_response
+
+        order = make_test_order()
+        result = await notify_customer(order, "Your order is confirmed!", client=mock_client)
+
+        assert result is True
+        mock_client.post.assert_awaited_once_with(
+            f"{NOTIFICATION_URL}/send",
+            json={"to": "test@example.com", "body": "Your order is confirmed!", "ref": "ORD-001"},
+        )
 
     @pytest.mark.asyncio
     async def test_failed_notification_non_200(self):
-        # TODO:
-        # 1. Same setup but set status_code = 500
-        # 2. Assert result is False
-        pytest.skip("TODO: implement this test")
+        mock_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_client.post.return_value = mock_response
+
+        order = make_test_order()
+        result = await notify_customer(order, "Hello", client=mock_client)
+
+        assert result is False
 
     @pytest.mark.asyncio
     async def test_network_error_returns_false(self):
-        # TODO:
-        # 1. Make mock_client.post.side_effect = httpx.ConnectError("connection failed")
-        # 2. Assert result is False
-        pytest.skip("TODO: implement this test")
+        mock_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_client.post.side_effect = httpx.ConnectError("connection failed")
+
+        order = make_test_order()
+        result = await notify_customer(order, "Hello", client=mock_client)
+
+        assert result is False
