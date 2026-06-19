@@ -1,14 +1,14 @@
-# Lab 07 - Copilot for Deployment
+# Lab 07 - Copilot for Deployment (Java)
 
 **Duration:** ~90 min  
 **SDLC Phase:** Integration → Deployment → Release  
 **Autonomy Level:** 🟡 Human reviews, Copilot automates  
-**Prerequisites:** Git + a remote repository (GitHub or Azure DevOps Repos), VS Code with GitHub Copilot, [HVE Core](https://marketplace.visualstudio.com/items?itemName=ise-hve-essentials.hve-core) extension  
+**Prerequisites:** Java 17+, Maven or Gradle, Git + a remote repository (GitHub or Azure DevOps Repos), VS Code with GitHub Copilot, [HVE Core](https://marketplace.visualstudio.com/items?itemName=ise-hve-essentials.hve-core) extension  
 **Works with:** GitHub Issues · Azure DevOps Work Items · Jira (see Part 1 for tracker-specific steps)
 
 ---
 
-Lab 07 is self-contained. **Copilot is your pair programmer throughout**: it generates the Bicep or Terraform that provisions your infrastructure, scaffolds the CI/CD pipeline YAML that enforces SBOM and CVE gates, and helps reason about cost before any resource is created. The lab covers the full path from a local commit to a pipeline-gated, infrastructure-validated, Copilot-assisted deployment.
+Lab 07 is self-contained. **Copilot is your pair programmer throughout**: it generates the Bicep or Terraform that provisions your infrastructure, scaffolds the CI/CD pipeline YAML that enforces SBOM and CVE gates, and helps reason about cost before any resource is created. The lab covers the full path from a local commit to a pipeline-gated, infrastructure-validated, Copilot-assisted deployment — using a Java (Maven/Gradle) toolchain throughout.
 
 ## What You'll Practice
 
@@ -27,8 +27,14 @@ Lab 07 is self-contained. **Copilot is your pair programmer throughout**: it gen
 
 ```bash
 cd lab07
-pip install -r requirements.txt
+
+# Verify Java and build tools are available
+java -version        # expect Java 17+
+mvn -version         # Maven — or use Gradle below
+# ./gradlew --version  # uncomment if using Gradle
 ```
+
+> **Note:** There is no `pom.xml` or `build.gradle` in this directory yet. You create your build file in Part 2 as the first exercise step.
 
 ---
 
@@ -39,7 +45,7 @@ You're an engineer taking a feature from a local commit to a production-ready de
 Your path through the lab:
 1. **Create a feature branch** — your unit of deployable change
 2. **Scan the supply chain** — generate an SBOM and surface CVEs before the pipeline does
-3. **Containerise the service** — Docker Compose with Copilot-generated YAML
+3. **Containerise the service** — Docker Compose with Copilot-generated YAML for a Spring Boot app
 4. **Author the CI/CD pipeline** — build → scan → validate-iac → approval → deploy stages
 5. **Provision infrastructure** — Bicep or Terraform generated and validated with Copilot + MCP
 6. **Open the PR and ship** — real artifacts, enforced gates, Copilot-assisted cost review
@@ -50,7 +56,7 @@ This lab is self-contained. Everything you need is created locally during the ex
 
 ### What you'll produce
 
-1. `requirements.txt` for dependency scanning
+1. `pom.xml` (Maven) or `build.gradle` (Gradle) for dependency scanning
 2. `docker-compose.yml` for containerised deployment
 3. `.github/workflows/lab07-pipeline.yml` (or `azure-pipelines.yml`) — CI/CD pipeline with supply-chain gates
 4. `main.bicep` or `main.tf` — IaC generated with Copilot and validated locally
@@ -107,7 +113,7 @@ Create your working branch now. The PR opens in Part 6, once real artifacts exis
 
 2. **Ask Copilot to draft your PR description** (you’ll paste it when opening the PR in Part 6):
    ```
-   Chat prompt: “Draft a GitHub PR description for a lab07 deployment branch.
+   Chat prompt: “Draft a GitHub PR description for a lab07 deployment branch (Java/Spring Boot).
    Include sections: Description, Changes (SBOM, pipeline YAML, IaC),
    Supply Chain Security checklist, Cost Estimate placeholder.
    Use markdown. Keep it under 30 lines.”
@@ -123,6 +129,7 @@ Modern DevOps requires supply chain security awareness. You'll generate a bill-o
 ### What is an SBOM?
 
 A Software Bill of Materials (SBOM) is a machine-readable inventory of all dependencies in your software. It:
+
 - Lists every dependency and its version
 - Enables vulnerability tracking across your supply chain
 - Supports compliance audits and security policies
@@ -132,78 +139,133 @@ A Software Bill of Materials (SBOM) is a machine-readable inventory of all depen
 
 #### Task 1: Generate SBOM from dependencies (5 min)
 
-1. **Create a SBOM file from local dependencies:**
-   ```bash
-   # Navigate to your lab directory
-   cd lab07
-   
-   # Install the CycloneDX SBOM generator
-   python -m pip install cyclonedx-bom
-   
-   # Generate a CycloneDX SBOM from requirements.txt
-   python -m cyclonedx_py requirements -i requirements.txt 2>/dev/null > sbom.xml
-   cat sbom.xml
+If you don't yet have a build file in this directory, create a minimal one so you have real dependencies to scan:
+
+- **Maven** — ask Copilot:
+  ```
+  Generate a minimal pom.xml for a Java 17 project that includes
+  Spring Boot Web, Spring Data JPA, and Lombok as dependencies.
+  ```
+
+- **Gradle** — ask Copilot:
+  ```
+  Generate a minimal build.gradle for a Java 17 project that includes
+  Spring Boot Web, Spring Data JPA, and Lombok as dependencies.
+  ```
+
+**Maven — generate SBOM with CycloneDX:**
+
+1. Add the plugin to `pom.xml`:
+   ```xml
+   <build>
+     <plugins>
+       <plugin>
+         <groupId>org.cyclonedx</groupId>
+         <artifactId>cyclonedx-maven-plugin</artifactId>
+         <version>2.8.0</version>
+       </plugin>
+     </plugins>
+   </build>
    ```
 
-2. **Use Copilot to summarize:**
-   ```
-   Chat prompt: "Create a markdown summary of this CycloneDX SBOM showing:
-   - Total number of dependencies
-   - High-level dependency categories (web framework, database, testing, etc.)
-   - Any dependencies that appear outdated
-   
-   Format as a table with columns: Package, Version, Category"
+2. Run:
+   ```bash
+   mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+   # Output: target/bom.xml
+   cat target/bom.xml
    ```
 
-3. **Commit your SBOM:**
-   ```bash
-   git add sbom.xml
-   git commit -m "lab07: Add CycloneDX SBOM"
+**Gradle — generate SBOM with CycloneDX:**
+
+1. Add the plugin to `build.gradle`:
+   ```groovy
+   plugins {
+     id 'org.cyclonedx.bom' version '1.8.2'
+   }
    ```
+
+2. Run:
+   ```bash
+   ./gradlew cyclonedxBom
+   # Output: build/reports/bom.xml
+   cat build/reports/bom.xml
+   ```
+
+**Use Copilot to summarize the SBOM:**
+```
+Chat prompt: "Create a markdown summary of this CycloneDX SBOM showing:
+- Total number of dependencies
+- High-level dependency categories (web framework, database, testing, etc.)
+- Any dependencies that appear outdated
+
+Format as a table with columns: Package, Version, Category"
+```
+
+**Commit your SBOM:**
+```bash
+# Maven
+git add target/bom.xml
+git commit -m "lab07: Add CycloneDX SBOM"
+
+# Gradle
+git add build/reports/bom.xml
+git commit -m "lab07: Add CycloneDX SBOM"
+```
 
 #### Task 2: Vulnerability scanning (7 min)
 
-1. **Ask Copilot to scan for known vulnerabilities:**
-   ```
-   Chat prompt: "Analyze this requirements.txt for known CVEs and security issues:
-   
-   [paste contents of sbom.xml or requirements.txt]
-   
-   For each potential issue, provide:
-   - Package name
-   - Current version
-   - Known CVE ID
-   - Severity (LOW, MEDIUM, HIGH, CRITICAL)
-   - Recommended action"
-   ```
+**Option A — OWASP Dependency Check (Maven):**
+```bash
+mvn org.owasp:dependency-check-maven:check
+# Report: target/dependency-check-report.html
+# Opens a browser-friendly HTML report with CVE details
+```
 
-2. **Document findings:**
-   ```bash
-   # Create a vulnerability report
-   cat > SECURITY_SCAN.md << EOF
-   # Security Scan Report
-   
-   Date: $(date)
-   
-   ## Summary
-   - Total dependencies scanned: <N>
-   - High/Critical vulnerabilities: <count>
-   - Medium vulnerabilities: <count>
-   - Low vulnerabilities: <count>
-   
-   ## Findings
-   (Add Copilot's analysis here)
-   
-   ## Remediation Plan
-   (Add action items from Copilot)
-   EOF
-   ```
+**Option B — OWASP Dependency Check (Gradle):**
+```bash
+./gradlew dependencyCheckAnalyze
+# Report: build/reports/dependency-check-report.html
+```
 
-3. **Commit the security report:**
-   ```bash
-   git add SECURITY_SCAN.md
-   git commit -m "lab07: Add security vulnerability scan report"
-   ```
+**Option C — Copilot analysis** (if CLI tools are not installed):
+```
+Chat prompt: "Analyze this pom.xml (or build.gradle) for known CVEs and security issues.
+
+[paste your dependency list]
+
+For each potential issue, provide:
+- Artifact name and group
+- Current version
+- Known CVE ID
+- Severity (LOW, MEDIUM, HIGH, CRITICAL)
+- Recommended action"
+```
+
+**Document findings:**
+```bash
+cat > SECURITY_SCAN.md << EOF
+# Security Scan Report
+
+Date: $(date)
+
+## Summary
+- Total dependencies scanned: <N>
+- High/Critical vulnerabilities: <count>
+- Medium vulnerabilities: <count>
+- Low vulnerabilities: <count>
+
+## Findings
+(Add scan output or Copilot's analysis here)
+
+## Remediation Plan
+(Add action items from Copilot)
+EOF
+```
+
+```bash
+git add SECURITY_SCAN.md
+git commit -m "lab07: Add security vulnerability scan report"
+```
 
 ### Dependency Update Policy
 
@@ -214,7 +276,7 @@ Document this in your PR description:
 
 - **SBOM requirement**: All releases must include an updated SBOM
 - **Vulnerability scanning**: Mandatory before PR merge
-- **Severity thresholds**: 
+- **Severity thresholds**:
   - CRITICAL: Block merge immediately, remediate before release
   - HIGH: Address within 72 hours
   - MEDIUM: Address within 2 weeks
@@ -244,22 +306,25 @@ Docker Compose defines your entire service topology as YAML — the same format 
    - Chat prompt:
      ```
      Create a docker-compose.yml file that:
-     - Defines a Python service running the reminder engine
+     - Defines a Java Spring Boot service (built from a Dockerfile)
      - Includes a PostgreSQL database service
-     - Sets up environment variables for database connection
+     - Sets up environment variables for database connection (spring.datasource.url, etc.)
      - Configures volume mounts for data persistence
      - Defines a custom bridge network for service-to-service communication
      - Includes health checks for both services
      - Contains comments explaining each section
-     
+
      Make it production-ready with proper error handling.
      ```
 
 3. **Your docker-compose.yml will include:**
    ```yaml
    services:
-     reminder-engine:
-       # Python service running the reminder engine
+     app:
+       # Java Spring Boot service
+       build: .
+       environment:
+         SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/appdb
      postgres:
        # Database service
      # networks, volumes, health checks defined below
@@ -271,7 +336,7 @@ Docker Compose defines your entire service topology as YAML — the same format 
    ```bash
    # Check syntax (requires Docker)
    docker compose config
-   
+
    # Or validate with Copilot:
    # "Validate this docker-compose.yml for syntax and best practices"
    ```
@@ -329,16 +394,16 @@ Each job depends on the previous one (`needs:`). A CVE above the threshold fails
    Define these jobs in sequence using 'needs:':
 
    build:
-     - checkout, setup Python 3.11
-     - install lab07/requirements.txt
-     - generate a CycloneDX SBOM: pip install cyclonedx-bom && python -m cyclonedx_py requirements -i lab07/requirements.txt > lab07/sbom.xml
-     - upload sbom.xml as artifact 'sbom'
+     - checkout, setup Java 17 (temurin distribution)
+     - build with Maven: mvn -f lab07/pom.xml package -DskipTests
+     - generate CycloneDX SBOM: mvn -f lab07/pom.xml org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+     - upload lab07/target/bom.xml as artifact 'sbom'
 
    scan:
      - download artifact 'sbom'
-     - run pip-audit: pip install pip-audit && pip-audit -r lab07/requirements.txt --format=json -o lab07/cve-report.json
-     - upload cve-report.json as artifact 'cve-report' using 'if: failure()'
-     - add a step with 'if: failure()' that prints ::error:: and exits 1 to surface failures clearly
+     - run OWASP Dependency Check: mvn -f lab07/pom.xml org.owasp:dependency-check-maven:check
+     - upload lab07/target/dependency-check-report.html as artifact 'cve-report' using 'if: failure()'
+     - add a step with 'if: failure()' that prints ::error:: and exits 1
 
    validate-iac:
      - if hashFiles('lab07/main.bicep') != '', run: az bicep install && az bicep build --file lab07/main.bicep
@@ -346,7 +411,7 @@ Each job depends on the previous one (`needs:`). A CVE above the threshold fails
      - add a step with 'if: failure()' that prints ::error:: IaC validation failed
 
    manual-approval:
-     - runs-on: ubuntu-latest, environment: production  (requires required-reviewers in Settings)
+     - runs-on: ubuntu-latest, environment: production
      - single step: echo 'All gates passed. Pending approval.'
 
    deploy:
@@ -369,34 +434,34 @@ Each job depends on the previous one (`needs:`). A CVE above the threshold fails
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v4
-         - uses: actions/setup-python@v5
+         - uses: actions/setup-java@v4
            with:
-             python-version: '3.11'
-         - run: pip install -r lab07/requirements.txt
+             java-version: '17'
+             distribution: 'temurin'
+         - name: Build (skip tests)
+           run: mvn -f lab07/pom.xml package -DskipTests
          - name: Generate SBOM (CycloneDX)
-           run: |
-             pip install cyclonedx-bom
-             python -m cyclonedx_py requirements \
-               -i lab07/requirements.txt > lab07/sbom.xml
+           run: mvn -f lab07/pom.xml org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
          - uses: actions/upload-artifact@v4
-           with: { name: sbom, path: lab07/sbom.xml }
+           with: { name: sbom, path: lab07/target/bom.xml }
 
      scan:
        runs-on: ubuntu-latest
        needs: build
        steps:
          - uses: actions/checkout@v4
+         - uses: actions/setup-java@v4
+           with:
+             java-version: '17'
+             distribution: 'temurin'
          - uses: actions/download-artifact@v4
-           with: { name: sbom, path: lab07/ }
-         - name: CVE scan
-           run: |
-             pip install pip-audit
-             pip-audit -r lab07/requirements.txt \
-               --format=json -o lab07/cve-report.json
+           with: { name: sbom, path: lab07/target/ }
+         - name: OWASP Dependency Check
+           run: mvn -f lab07/pom.xml org.owasp:dependency-check-maven:check
          - name: Upload CVE report on failure
            if: failure()
            uses: actions/upload-artifact@v4
-           with: { name: cve-report, path: lab07/cve-report.json }
+           with: { name: cve-report, path: lab07/target/dependency-check-report.html }
          - name: Surface CVE failures
            if: failure()
            run: |
@@ -438,6 +503,8 @@ Each job depends on the previous one (`needs:`). A CVE above the threshold fails
              echo "Or: terraform plan -out=tfplan"
    ```
 
+   > **Gradle users:** Replace the Maven steps with `./gradlew lab07:build`, `./gradlew lab07:cyclonedxBom`, and `./gradlew lab07:dependencyCheckAnalyze`. Adjust artifact paths from `target/` to `build/reports/`.
+
 4. Commit the pipeline:
    ```bash
    git add .github/workflows/lab07-pipeline.yml
@@ -453,7 +520,7 @@ If your team uses Azure DevOps Repos, create `azure-pipelines.yml` at the repo r
    ```
    Chat prompt: "Translate the Lab07 GitHub Actions pipeline into Azure Pipelines YAML with
    equivalent stages: Build → Scan → ValidateIaC → ManualApproval → Deploy (dry-run).
-   Keep the CycloneDX SBOM and pip-audit CVE scan steps.
+   Use Maven (Java 17) for build and OWASP Dependency Check for CVE scanning.
    Use 'condition: failed()' for evidence-upload tasks and an ADO Environment named
    'production' for the approval gate."
    ```
@@ -483,7 +550,7 @@ Required status checks turn optional CI runs into **merge blockers**. Without th
    - `validate-iac`
 4. Enable **"Require branches to be up to date before merging"**
 
-   > Copilot prompt: `"What branch protection settings enforce supply-chain security gates on a Python repo? Include status checks and signed commits."`
+   > Copilot prompt: `"What branch protection settings enforce supply-chain security gates on a Java Maven repo? Include status checks and signed commits."`
 
 **GitHub Environment for manual approval:**
 
@@ -501,11 +568,17 @@ Required status checks turn optional CI runs into **merge blockers**. Without th
 
 #### Task 3: Verify gate behavior (5 min)
 
-1. **Break the CVE scan intentionally:**
+1. **Break the CVE scan intentionally** — add a known-vulnerable dependency to `pom.xml`:
+   ```xml
+   <!-- Add inside <dependencies> — Spring Framework with known CVEs -->
+   <dependency>
+     <groupId>org.springframework</groupId>
+     <artifactId>spring-core</artifactId>
+     <version>5.2.0.RELEASE</version>
+   </dependency>
+   ```
    ```bash
-   # Add a package with known CVEs to requirements.txt
-   echo "requests==2.18.0" >> lab07/requirements.txt
-   git add lab07/requirements.txt
+   git add lab07/pom.xml
    git commit -m "lab07: TEST — introduce CVE to verify gate"
    git push origin lab07/pr-workflow
    ```
@@ -528,9 +601,8 @@ Required status checks turn optional CI runs into **merge blockers**. Without th
 
 4. **Revert the intentional CVE and push a clean commit:**
    ```bash
-   # Remove the test line from requirements.txt
-   git add lab07/requirements.txt
-   git commit -m "lab07: Revert test CVE — restore clean requirements.txt"
+   git add lab07/pom.xml
+   git commit -m "lab07: Revert test CVE — restore clean pom.xml"
    git push origin lab07/pr-workflow
    ```
 
@@ -564,10 +636,10 @@ Bicep is an Azure-native DSL for Infrastructure-as-Code. It compiles to ARM temp
    - Chat prompt:
      ```
      Use the Microsoft Learn MCP tool to find official Bicep examples for:
-     - Creating an Azure Storage Account with encryption
+     - Creating an Azure Container Apps environment for a Java Spring Boot service
      - Configuring access controls and network security
-     - Adding monitoring and logging
-     
+     - Adding monitoring and logging with Application Insights
+
      Then generate a Bicep file with these resources.
      Include metadata comments explaining the deployment pattern.
      ```
@@ -603,8 +675,8 @@ Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more.
      ```
      Use the Microsoft Learn MCP to fetch official Terraform examples for:
      - Azure Resource Group with naming conventions
-     - Azure Storage Account with encryption and network security
-     
+     - Azure Container Apps for deploying a Java Spring Boot container
+
      Generate a Terraform configuration that demonstrates modern cloud deployment.
      Include comments explaining resource dependencies.
      ```
@@ -616,16 +688,19 @@ Terraform is a cloud-agnostic IaC tool supporting AWS, Azure, GCP, and more.
    # main.tf
    terraform {
      required_providers {
-       azurerm = "~> 3.0"
+       azurerm = {
+         source  = "hashicorp/azurerm"
+         version = "~> 3.0"
+       }
      }
    }
-   
+
    provider "azurerm" {
      features {}
    }
-   
+
    # Resources from Microsoft Learn samples
-   # (storage, monitoring, networking)
+   # (container apps, monitoring, networking)
    ```
 
 5. **Validate locally (no deployment):**
@@ -645,21 +720,21 @@ GitOps means **Git is your single source of truth for infrastructure and deploym
 1. **Add GitOps declaration to your IaC file:**
    - For Bicep, add a comment block:
      ```bicep
-     /* 
+     /*
      GitOps Deployment:
      This file is the source of truth for infrastructure state.
-     
+
      Deployment method (choose one for production):
      1. Azure DevOps Pipelines: Triggered on commit to main
      2. GitHub Actions: Automated deployment on merge
      3. ArgoCD (Kubernetes): Continuous sync from Git
      4. Flux (Kubernetes): GitOps reconciliation loop
-     
+
      All infrastructure changes must go through Git PR → Review → Merge → Deploy
      Never apply infrastructure changes directly (no manual "az" or "terraform apply" in production)
      */
      ```
-   
+
    - For Terraform, add to `main.tf`:
      ```hcl
      # GitOps Declaration
@@ -667,6 +742,12 @@ GitOps means **Git is your single source of truth for infrastructure and deploym
      # Deployment flows: Git commit -> CI/CD pipeline -> terraform apply
      # All changes tracked in Git history for auditability.
      ```
+
+2. **Understand why GitOps matters:**
+   - Every infrastructure change is auditable (in Git history)
+   - Rollback is as simple as reverting a commit
+   - Multiple environments can be managed as code branches
+   - Drift detection: Compare Git state vs. actual infrastructure
 
 3. **Commit your IaC:**
    ```bash
@@ -692,7 +773,7 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
 
 1. **Ask Copilot to write the PR description from your diff:**
    ```
-   Chat prompt: “Write a PR description for the lab07/pr-workflow branch.
+   Chat prompt: “Write a PR description for the lab07/pr-workflow branch (Java/Spring Boot).
    Summarise: the SBOM and CVE scan findings (Part 2), the CI/CD pipeline
    structure with its security gates (Part 4), and the IaC resources defined
    (Part 5). Include the supply chain security checklist and cost estimate
@@ -730,7 +811,7 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
    ```bash
    # For Bicep
    bicep build main.bicep  # (or use Copilot validation)
-   
+
    # For Terraform
    terraform init -backend=false
    terraform validate
@@ -741,28 +822,27 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
    Chat prompt: "Review this [Bicep/Terraform] code for security best practices:
    - Encryption at rest and in transit
    - Network isolation and access controls
-   - Secrets management
+   - Secrets management (no hardcoded credentials)
    - Monitoring and logging
-   
+
    Flag any issues and suggest fixes."
    ```
 
 #### Task 4: Cost estimation (3 min)
 
-
-
 1. **Estimate deployment cost with Copilot:**
    ```
    Chat prompt: "Based on this Bicep/Terraform configuration, estimate monthly cost:
-   
+
    [paste your IaC]
-   
+
    Assume:
    - Standard Azure regions (East US)
    - 24/7 uptime
    - Typical storage: 100 GB/month
    - Typical data transfer: 1 TB/month egress
-   
+   - Java app: 2 vCPU, 4 GB RAM
+
    Provide:
    - Per-resource cost breakdown
    - Total estimated monthly cost
@@ -772,12 +852,12 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
 2. **Document cost assumptions in your PR:**
    ```markdown
    ## Cost Estimate
-   
-   - Storage Account: $X/month
-   - Application Insights: $Y/month  
+
+   - Container Apps environment: $X/month
+   - Application Insights: $Y/month
    - Data Transfer: $Z/month
    - **Total estimated: $TOTAL/month**
-   
+
    Assumptions: [list from Copilot analysis]
    Optimization opportunities: [list from Copilot]
    ```
@@ -813,10 +893,10 @@ Validation covers syntax, security, and **cost awareness**. Engineers who unders
 
 ## Summary
 
-In this lab, you’ve practised **Copilot-assisted deployment**:
+In this lab, you’ve practised **Copilot-assisted deployment** with a Java toolchain:
 
-✅ **Supply Chain Security** — SBOM generation and CVE scanning as enforced pipeline gates  
-✅ **Containerised Deployment** — Docker Compose generated and validated with Copilot  
+✅ **Supply Chain Security** — CycloneDX SBOM from Maven/Gradle + OWASP Dependency Check as enforced pipeline gates  
+✅ **Containerised Deployment** — Docker Compose generated and validated with Copilot for Spring Boot  
 ✅ **CI/CD Pipeline Authoring** — build → scan → validate-iac → approval → deploy in GitHub Actions or Azure Pipelines  
 ✅ **Policy-as-Code** — CVE and IaC failures as required status checks, not markdown checklists  
 ✅ **Infrastructure-as-Code** — Bicep or Terraform generated with Copilot + MCP, validated locally  
