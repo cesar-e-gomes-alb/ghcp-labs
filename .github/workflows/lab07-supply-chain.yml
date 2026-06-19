@@ -34,7 +34,7 @@ jobs:
       - name: Generate CycloneDX SBOM
         run: |
           pip install cyclonedx-bom
-          python -m cyclonedx_py requirements -i lab07/requirements.txt > lab07/sbom.xml
+          python -m cyclonedx_py requirements lab07/requirements.txt > lab07/sbom.xml
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
