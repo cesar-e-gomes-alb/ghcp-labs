@@ -40,7 +40,7 @@ Your path through the lab:
 1. **Create a feature branch** — your unit of deployable change
 2. **Scan the supply chain** — generate an SBOM and surface CVEs before the pipeline does
 3. **Containerise the service** — Docker Compose with Copilot-generated YAML
-4. **Author the CI/CD pipeline** — build → scan → validate-iac → approval → deploy stages
+4. **Author the CI/CD pipeline** — build → scan → validate-iac → copilot-review + manual-approval → deploy stages
 5. **Provision infrastructure** — Bicep or Terraform generated and validated with Copilot + MCP
 6. **Open the PR and ship** — real artifacts, enforced gates, Copilot-assisted review
 
@@ -116,7 +116,7 @@ A Software Bill of Materials (SBOM) is a machine-readable inventory of all depen
 
 #### Task 2: Vulnerability scanning (7 min)
 
-1. **Ask Copilot to scan for known vulnerabilities:**
+1. **Scan for vulnerabilities and document findings:**
    ```
    Chat prompt: "Analyze this requirements.txt for known CVEs and security issues:
    
@@ -127,32 +127,15 @@ A Software Bill of Materials (SBOM) is a machine-readable inventory of all depen
    - Current version
    - Known CVE ID
    - Severity (LOW, MEDIUM, HIGH, CRITICAL)
-   - Recommended action"
+   - Recommended action
+   
+   Then generate a SECURITY_SCAN.md report with sections: Summary (total scanned,
+   counts by severity), Findings (your analysis above), and Remediation Plan."
    ```
 
-2. **Document findings:**
-   ```bash
-   # Create a vulnerability report
-   cat > SECURITY_SCAN.md << EOF
-   # Security Scan Report
-   
-   Date: $(date)
-   
-   ## Summary
-   - Total dependencies scanned: <N>
-   - High/Critical vulnerabilities: <count>
-   - Medium vulnerabilities: <count>
-   - Low vulnerabilities: <count>
-   
-   ## Findings
-   (Add Copilot's analysis here)
-   
-   ## Remediation Plan
-   (Add action items from Copilot)
-   EOF
-   ```
+   Save the generated report as `SECURITY_SCAN.md` in the `lab07/` directory.
 
-3. **Commit the security report:**
+2. **Commit the security report:**
    ```bash
    git add SECURITY_SCAN.md
    git commit -m "lab07: Add security vulnerability scan report"
@@ -188,14 +171,20 @@ Supply chain security is not optional. SBOM generation and vulnerability scannin
 
 Docker Compose defines your entire service topology as YAML — the same format as CI/CD pipeline jobs (Part 4) and IaC modules (Part 5). Copilot generates the file; your job is to validate, understand, and commit it.
 
+### Instructions Installation (1 min)
+
+Before generating any YAML, let's use the community Copilot skills that give Copilot deep knowledge of Docker and container best practices. You should see several skills on the lab07/skills folder. 
+
+1. **Verify Copilot can see the instructions:**
+   Open Copilot Chat and type:
+   ```
+   What Docker and containerization best practices do you have available?
+   ```
+   Copilot should reference the installed instructions. This is a great file to adapt and use it according to your Company's own best practices and needs. 
+
 ### Your tasks
 
-1. **Create a Docker Compose file:**
-   ```bash
-   touch docker-compose.yml
-   ```
-
-2. **Use Copilot to build a multi-service composition:**
+1. **Use Copilot to build a multi-service composition** into `docker-compose.yml`:
    - Chat prompt:
      ```
      Create a docker-compose.yml file that:
@@ -210,7 +199,7 @@ Docker Compose defines your entire service topology as YAML — the same format 
      Make it production-ready with proper error handling.
      ```
 
-3. **Your docker-compose.yml will include:**
+2. **Your docker-compose.yml will include:**
    ```yaml
    services:
      reminder-engine:
@@ -220,24 +209,17 @@ Docker Compose defines your entire service topology as YAML — the same format 
      # networks, volumes, health checks defined below
    ```
 
-   > **Note:** Omit `version:` — it is obsolete in Docker Compose v2 and later.
-
-4. **Validate the Docker Compose file:**
+3. **Validate the Docker Compose file:**
    ```bash
    # Check syntax (requires Docker)
    docker compose config
-   
-   # Or validate with Copilot:
-   # "Validate this docker-compose.yml for syntax and best practices"
+   ```
+   Or ask Copilot using the installed instructions:
+   ```
+   Review this docker-compose.yml for syntax errors and best practices.
    ```
 
-5. **Understand why Docker Compose matters:**
-   - **Local parity**: Developers test exactly what runs in production
-   - **Container standards**: YAML + containers are the deployment baseline
-   - **Orchestration foundation**: Docker Compose is the bridge to Kubernetes and production orchestration
-   - **DevOps fluency**: Every engineer must read/write container configs
-
-6. **Commit and push:**
+4. **Commit and push:**
    ```bash
    git add docker-compose.yml
    git commit -m "lab07: Add Docker Compose for containerized deployment"
@@ -257,7 +239,7 @@ A markdown checklist is a reminder. A required status check is a **contract**. T
 ### Pipeline structure
 
 ```
-build → scan → validate-iac → (manual-approval) → deploy
+build → scan → validate-iac → (copilot-review + manual-approval) → deploy
 ```
 
 Each job depends on the previous one (`needs:`). A CVE above the threshold fails `scan`, which prevents `validate-iac` from starting, which prevents the approval gate from appearing. Evidence artifacts are uploaded with `if: failure()` so reviewers can inspect findings in the run.
@@ -650,9 +632,38 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
    (Part 5). Include the supply chain security checklist."
    ```
 
-2. **Open the PR:**
-   - GitHub: use `/createPullRequest` in Copilot Chat, or repository → Pull requests → New pull request
-   - Azure DevOps: Repos → Pull requests → New pull request
+2. **Open the PR — pick the fastest method for your setup:**
+
+   **Option A — GitHub CLI (fastest):**
+   ```bash
+   gh pr create \
+     --title "lab07: Supply-chain CI/CD, Docker Compose, and IaC" \
+     --body "$(cat <<'EOF'
+   ## Summary
+   Adds SBOM generation, CVE scanning pipeline gates, Docker Compose, and Bicep/Terraform IaC.
+
+   ## Changes
+   - SBOM (CycloneDX) and vulnerability scan report
+   - GitHub Actions pipeline: build → scan → validate-iac → copilot-review + manual-approval → deploy
+   - Docker Compose multi-service configuration
+   - Bicep or Terraform IaC with preflight validation
+
+   ## Supply Chain Security Checklist
+   - [ ] SBOM generated and committed
+   - [ ] CVE scan clean (or findings documented)
+   - [ ] IaC validated locally
+   - [ ] Pipeline gates configured as required status checks
+   EOF
+   )" \
+     --base main \
+     --head lab07/pr-workflow
+   ```
+
+   **Option B — Copilot Chat:**
+   Type `/createPullRequest` in Copilot Chat — it drafts the title and description from your branch diff automatically.
+
+   **Option C — GitHub web UI:**
+   Repository → Pull requests → New pull request → select `lab07/pr-workflow` → base `main`.
 
 3. **Reference tracker items:**
    - Group A (ADO work items): `AB#<ID>`
@@ -679,8 +690,7 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
 
 1. **Validate using the installed skill (Bicep track):**
    ```
-   Chat prompt: "Run a preflight validation on lab07/main.bicep using
-   the azure-deployment-preflight skill. Generate or update preflight-report.md."
+   Chat prompt: "Run a preflight validation on lab07/main.bicep. Generate or update preflight-report.md."
    ```
    Or run directly:
    ```bash
@@ -689,8 +699,7 @@ You now have real artifacts to ship. Use Copilot to write the PR description fro
 
 2. **Validate using the installed skill (Terraform track):**
    ```
-   Chat prompt: "Using the import-infrastructure-as-code skill,
-   confirm lab07/main.tf is AVM-compliant and run terraform validate."
+   Chat prompt: "Confirm lab07/main.tf is AVM-compliant and run terraform validate."
    ```
    Or run directly:
    ```bash
@@ -766,7 +775,7 @@ In this lab, you’ve practised **Copilot-assisted deployment**:
 
 ✅ **Supply Chain Security** — SBOM generation and CVE scanning as enforced pipeline gates  
 ✅ **Containerised Deployment** — Docker Compose generated and validated with Copilot  
-✅ **CI/CD Pipeline Authoring** — build → scan → validate-iac → approval → deploy in GitHub Actions or Azure Pipelines  
+✅ **CI/CD Pipeline Authoring** — build → scan → validate-iac → copilot-review + manual-approval → deploy in GitHub Actions or Azure Pipelines  
 ✅ **Policy-as-Code** — CVE and IaC failures as required status checks, not markdown checklists  
 ✅ **Infrastructure-as-Code** — Bicep or Terraform generated with Copilot + MCP, validated locally  
 ✅ **Community Copilot Skills** — `azure-deployment-preflight` (Bicep preflight + what-if) and `import-infrastructure-as-code` (AVM-based Terraform) from [awesome-copilot.github.com/skills](https://awesome-copilot.github.com/skills/)
